@@ -6,6 +6,8 @@ Base de un simulador de tráfico discreto, determinista y orientado a eventos. E
 
 - `src/generation/`: creación de calendarios de vehículos.
 - `src/generation/mod.rs`: generador de vehículos de demostración.
+- `src/presentation/`: salida por consola provisional.
+- `src/presentation/console.rs`: visualización textual de la demo.
 - `src/model/`: dominio separado por responsabilidad.
 - `src/model/mod.rs`: reexporta el modelo público.
 - `src/model/node.rs`: nodos, fases y planes semafóricos.
@@ -17,6 +19,8 @@ Base de un simulador de tráfico discreto, determinista y orientado a eventos. E
 - `src/simulation/`: lógica interna separada por responsabilidad.
 - `src/simulation/events.rs`: eventos y reporte final.
 - `src/simulation/spawn.rs`: creación y calendario de vehículos.
+- `src/simulation/runtime.rs`: runtime de tramos y semáforos.
+- `src/simulation/lifecycle.rs`: ciclo de tick y ejecución continua.
 - `src/simulation/queues.rs`: resolución de colas y prioridades.
 - `src/simulation/movement.rs`: avance por tramos y entrada/salida.
 - `src/simulation/routing.rs`: cálculo de rutas dinámicas.
@@ -61,6 +65,7 @@ cargo clippy
 
 - `src/lib.rs`: exporta la API pública del proyecto.
 - `src/generation/`: generación de vehículos y calendarios.
+- `src/presentation/`: capa de salida provisional por consola.
 - `src/model/`: tipos base del dominio y la red vial.
 - `src/simulation.rs`: punto de entrada del motor de simulación.
 - `src/simulation/`: módulos internos del motor.
