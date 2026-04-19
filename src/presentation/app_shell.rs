@@ -66,24 +66,22 @@ impl SimulatorApp {
     }
     
     fn update_simulation(&mut self) {
-        // Lógica de avance por mouse
-        if self.playback.should_advance_tick(self.mouse_moved_this_frame) {
-            if self.engine.is_running() {
-                self.engine.advance_tick();
-                self.playback.advance_tick();
+        // Lógica de avance por mouse (cuando está habilitado)
+        if self.playback.mouse_controls_ticks {
+            if self.playback.should_advance_tick(self.mouse_moved_this_frame) {
+                if self.engine.is_running() {
+                    self.engine.advance_tick();
+                    self.playback.advance_tick();
+                }
             }
         }
         
-        // Simulación normal si no está controlada por mouse
+        // Simulación basada en frames si no está controlada por mouse
         if !self.playback.mouse_controls_ticks {
-            if self.playback.state == SimulationState::Running {
-                let elapsed = self.last_frame_time.elapsed().as_secs_f32();
-                let ticks_to_advance = (elapsed * self.playback.ticks_per_second * self.playback.speed) as u64;
-                for _ in 0..ticks_to_advance {
-                    if self.engine.is_running() {
-                        self.engine.advance_tick();
-                        self.playback.advance_tick();
-                    }
+            if self.playback.should_advance_tick_frame_based(self.mouse_moved_this_frame) {
+                if self.engine.is_running() {
+                    self.engine.advance_tick();
+                    self.playback.advance_tick();
                 }
             }
         }

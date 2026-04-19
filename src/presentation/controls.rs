@@ -15,11 +15,12 @@ pub enum SimulationState {
 pub struct PlaybackControls {
     pub state: SimulationState,
     pub speed: f32,      // Factor de velocidad (0.25x a 4.0x)
-    pub ticks_per_second: f32,  // Base TPS (10 a 240)
+    pub ticks_per_second: f32,  // TPS visual (10 a 240) - controla cada cuántos frames
     pub current_tick: u64,
     pub total_ticks: u64,
     pub mouse_controls_ticks: bool, // Los ticks avanzan solo con movimiento del mouse
     pub last_mouse_move: Instant,
+    pub frame_counter: u32, // Contador para sincronizar ticks con frames
 }
 
 impl Default for PlaybackControls {
@@ -32,12 +33,48 @@ impl Default for PlaybackControls {
             total_ticks: 10000,
             mouse_controls_ticks: true,
             last_mouse_move: Instant::now(),
+            frame_counter: 0,
         }
     }
 }
 
 impl PlaybackControls {
-    /// Detecta si debe avanzar un tick basado en el movimiento del mouse
+    /// Calcula cuántos frames deben esperar entre cada tick
+    /// Base: 60 FPS
+    /// Resultado: frames_entre_ticks = 60 / (TPS * speed)
+    pub fn frames_between_ticks(&self) -> u32 {
+        let base_fps = 60.0;
+        let effective_tps = self.ticks_per_second * self.speed;
+        let frames = (base_fps / effective_tps).max(1.0) as u32;
+        frames
+    }
+    
+    /// Detecta si debe avanzar un tick basado en acumulación de frames
+    pub fn should_advance_tick_frame_based(&mut self, mouse_moved: bool) -> bool {
+        if mouse_moved {
+            self.last_mouse_move = Instant::now();
+        }
+        
+        if self.state != SimulationState::Running {
+            return false;
+        }
+        
+        if self.mouse_controls_ticks && self.last_mouse_move.elapsed() > Duration::from_millis(500) {
+            return false;
+        }
+        
+        let frames_interval = self.frames_between_ticks();
+        self.frame_counter += 1;
+        
+        if self.frame_counter >= frames_interval {
+            self.frame_counter = 0;
+            return true;
+        }
+        
+        false
+    }
+    
+    /// Detecta si debe avanzar un tick basado en el movimiento del mouse (DEPRECATED)
     pub fn should_advance_tick(&mut self, mouse_moved: bool) -> bool {
         if mouse_moved {
             self.last_mouse_move = Instant::now();
@@ -74,6 +111,7 @@ impl PlaybackControls {
     pub fn reset(&mut self) {
         self.current_tick = 0;
         self.state = SimulationState::Paused;
+        self.frame_counter = 0;
     }
 }
 
