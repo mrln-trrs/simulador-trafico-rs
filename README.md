@@ -4,8 +4,15 @@ Base de un simulador de tráfico discreto, determinista y orientado a eventos. E
 
 ## Estado actual
 
-- `src/model.rs`: nodos, tramos, vehículos, semáforos y red vial.
-- `src/simulation.rs`: motor por ticks, colas, señales y eventos.
+- `src/model/`: dominio separado por responsabilidad.
+- `src/model/mod.rs`: reexporta el modelo público.
+- `src/model/node.rs`: nodos, fases y planes semafóricos.
+- `src/model/road.rs`: tramos y capacidades.
+- `src/model/vehicle.rs`: vehículos, tipos y estados.
+- `src/model/network.rs`: red vial y consulta del grafo.
+- `src/model/routing.rs`: cálculo de rutas.
+- `src/simulation.rs`: motor por ticks, colas y control de avance.
+- `src/simulation/events.rs`: eventos y reporte final.
 - `src/scenario.rs`: red de demostración y calendario de vehículos.
 - `src/main.rs`: demo en consola para ejecutar el flujo actual.
 - `documentation/idea.md`: especificación funcional del motor.
@@ -43,8 +50,9 @@ cargo clippy
 ## Estructura del proyecto
 
 - `src/lib.rs`: exporta la API pública del proyecto.
-- `src/model.rs`: tipos base del dominio y la red vial.
-- `src/simulation.rs`: ciclo de simulación y eventos.
+- `src/model/`: tipos base del dominio y la red vial.
+- `src/simulation.rs`: ciclo de simulación y resolución de colas.
+- `src/simulation/events.rs`: eventos y reporte de ejecución.
 - `src/scenario.rs`: escenario de prueba listo para ejecutar.
 - `src/main.rs`: punto de entrada del binario.
 - `documentation/idea.md`: definición funcional detallada.
