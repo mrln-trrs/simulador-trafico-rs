@@ -1,21 +1,194 @@
-# Simulador de tráfico
+# Simulador de Tráfico 🚗
 
-Simulador modular en Rust con:
+Simulador modular de tráfico urbano en Rust con arquitectura limpia y frontend moderno.
 
-- modelo de dominio tipado,
-- motor determinista por ticks,
-- contratos compartidos para snapshots y comandos,
-- persistencia JSON/TOML,
-- visualizador mínimo en `egui`.
+## ✨ Características
 
-## Ejecutar
+### Backend
+- Modelo de dominio tipado y estable
+- Motor determinista por ticks
+- Contratos compartidos (snapshots, comandos)
+- Persistencia JSON/TOML
+- Simul ación realista de flujo vehicular
 
+### Frontend - Interfaz Fluent Design
+- **Diseño moderno** inspirado en Fluent Design de Windows
+- **3 paneles**: Herramientas, Canvas, Inspector
+- **Control por mouse**: Los ticks avanzan solo cuando hay movimiento
+- **Control de velocidad**: 0.25x a 4.0x
+- **Métricas en vivo**: Visualización de estadísticas en tiempo real
+- **Grid y snap**: Herramientas de edición precisas
+- **Tema oscuro/claro**: Soporte completo
+
+## 🚀 Inicio Rápido
+
+### Ejecutar
+```bash
+cargo run --release
+```
+
+### Compilación Debug (más rápida)
 ```bash
 cargo run
 ```
 
-## Probar
-
+### Pruebas
 ```bash
 cargo test
 ```
+
+## 🎮 Cómo Usar
+
+### Observar Simulación
+1. Ejecuta `cargo run`
+2. La interfaz muestra un escenario de demostración
+3. Haz clic en **Play** para iniciar
+4. **Mueve el mouse** para que avancen los ticks
+5. Observa los vehículos moviéndose en la red
+
+### Panel Izquierdo - Herramientas
+- **🔍 Seleccionar**: Selecciona elementos
+- **● Crear Nodo**: Agrega puntos de intersección
+- **⟶ Crear Tramo**: Conecta nodos
+- **✤ Mover**: Reposiciona elementos
+- **⌫ Eliminar**: Quita elementos
+- **Snap a grid**: Alineación precisa
+- **Velocidad**: Controla la rapidez de simulación
+
+### Panel Central - Canvas
+- **Zoom**: Rueda del mouse
+- **Pan**: Botón derecho + arrastrar
+- **Seleccionar**: Clic izquierdo en elemento
+- **Grid**: Guía de referencia espacial
+
+### Panel Derecho - Inspector
+- Estado actual de la simulación
+- Estadísticas: Ticks, vehículos, viaje promedio
+- Lista de vehículos activos con progreso
+
+## 🎨 Tema Fluent Design
+
+### Colores
+| Color | Uso |
+|-------|-----|
+| 🔵 Azul (#0078D4) | Elementos primarios, selección |
+| 🟢 Verde (#107C10) | Vehículos, estado positivo |
+| 🟡 Amarillo (#FFB800) | Advertencias, congestión |
+| 🔴 Rojo (#FF0000) | Errores, bloqueos |
+
+### Espaciado
+- **Pequeño**: 4px - 8px
+- **Normal**: 12px
+- **Grande**: 16px - 24px
+- **XL**: 32px
+
+## 📁 Estructura del Código
+
+```
+src/
+├── app/              # Composición e inicio
+├── model/            # Dominio (tipado, puro)
+├── simulation/       # Motor de simulación
+├── generation/       # Creación de escenarios
+├── integration/      # Contratos compartidos
+├── presentation/     # Interfaz visual
+│   ├── theme.rs      # Sistema Fluent Design
+│   ├── components.rs # Widgets reutilizables
+│   ├── controls.rs   # Controles de simulación
+│   ├── canvas.rs     # Renderizado 2D
+│   └── app_shell.rs  # Layout principal
+└── persistence/      # Guardado/carga
+```
+
+## 🔧 Tecnologías
+
+- **Rust 2021 Edition**
+- **egui 0.27** - Framework GUI inmediato
+- **eframe 0.27** - Backend multiplataforma
+- **Serde** - Serialización
+- **TOML** - Configuración
+
+## 💡 Características Especiales
+
+### Control por Movimiento del Mouse ⭐
+```
+SIMULACIÓN PARADA:
+Cuando el mouse está inmóvil > 500ms
+→ La simulación se pausa automáticamente
+
+SIMULACIÓN EN MARCHA:
+Cuando hay movimiento del mouse
+→ Los ticks avanzan normalmente
+```
+
+Útil para inspeccionar la red sin que avance automáticamente.
+
+### Interfaz Responsiva
+- Paneles redimensionables
+- Canvas que usa espacio disponible
+- Elementos escalables con zoom
+
+## 🧪 Desarrollo
+
+### Compilar en Debug (rápido)
+```bash
+cargo build
+```
+
+### Compilar Optimizado (lento pero rápido en runtime)
+```bash
+cargo build --release
+```
+
+### Ejecutar Tests
+```bash
+cargo test
+```
+
+### Format
+```bash
+cargo fmt
+```
+
+### Lint
+```bash
+cargo clippy
+```
+
+## 📊 Próximas Mejoras
+
+- ✅ Interfaz Fluent Design moderna
+- ✅ Control por movimiento del mouse
+- ⏳ Herramientas de edición interactivas
+- ⏳ Análisis y mapas de calor
+- ⏳ Exportación de reportes
+- ⏳ Modo depuración avanzado
+- ⏳ Compatibilidad con escenarios OpenStreetMap
+
+## 📝 Notas de Desarrollo
+
+### Filosofía de Código
+- **Claridad**: El código es el mejor comentario
+- **Modularidad**: Cada capa una responsabilidad
+- **Testabilidad**: El modelo es independiente
+- **Escalabilidad**: Preparado para crecer
+
+### Principios Fluent
+- Minimalismo
+- Profundidad visual sutil
+- Espaciado generoso
+- Tipografía clara
+- Accesibilidad
+
+## 📄 Licencia
+
+MIT
+
+## 👨‍💻 Autor
+
+Proyecto educativo de simulación de tráfico urbano en Rust.
+
+---
+
+**Versión**: 1.0.0 - Fluent Design Edition
+**Estado**: En desarrollo activo ✨
