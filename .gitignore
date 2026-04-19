@@ -1,6 +1,6 @@
 # Rust build output
 /target/
-
+/target
 # Temporary / backup files
 **/*.rs.bk
 *.log
