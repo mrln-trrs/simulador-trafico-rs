@@ -1,4 +1,5 @@
-use crate::model::{Network, Node, NodeKind, RoadSegment, SignalPhase, SignalPlan, VehicleSpawn};
+use crate::generation::build_demo_schedule;
+use crate::model::{Network, Node, NodeKind, RoadSegment, SignalPhase, SignalPlan};
 use crate::simulation::Simulation;
 
 pub fn build_demo_network() -> Network {
@@ -23,18 +24,6 @@ pub fn build_demo_network() -> Network {
     network.add_road(RoadSegment::new(5, "Ruta Lateral", 1, 3, 520.0, 1, 40.0, 2));
 
     network
-}
-
-pub fn build_demo_schedule() -> Vec<VehicleSpawn> {
-    vec![
-        VehicleSpawn::new(0, "Vehiculo 1", 1, 4),
-        VehicleSpawn::new(1, "Vehiculo 2", 1, 4),
-        VehicleSpawn::new(2, "Vehiculo 3", 1, 4),
-        VehicleSpawn::new(3, "Vehiculo 4", 1, 3),
-        VehicleSpawn::new(4, "Vehiculo 5", 1, 4),
-        VehicleSpawn::new(5, "Vehiculo 6", 1, 4),
-        VehicleSpawn::new(6, "Vehiculo 7", 1, 4),
-    ]
 }
 
 pub fn build_demo_simulation() -> Simulation {
