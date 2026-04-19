@@ -1,6 +1,7 @@
 use egui::*;
 use crate::presentation::theme::FluentTheme;
-use crate::integration::snapshots::Snapshot;
+use crate::integration::snapshots::VehicleSnapshot;
+use crate::presentation::view_model::ViewModel;
 use std::collections::HashMap;
 
 /// Tipos de capas visuales
@@ -148,7 +149,8 @@ impl SelectionState {
 }
 
 /// Renderiza snapshot con estilo minimalista Fluent
-pub fn draw_snapshot(ui: &mut Ui, snapshot: &Snapshot, state: &mut CanvasState, theme: &FluentTheme) {
+pub fn draw_snapshot(ui: &mut Ui, view_model: &ViewModel, state: &mut CanvasState, theme: &FluentTheme) {
+    let snapshot = &view_model.snapshot;
     let desired_size = ui.available_size_before_wrap();
     let (rect, response) = ui.allocate_exact_size(desired_size, Sense::drag());
     
@@ -218,7 +220,15 @@ pub fn draw_snapshot(ui: &mut Ui, snapshot: &Snapshot, state: &mut CanvasState, 
                 let from = snapshot.nodes.iter().find(|node| node.id == segment.from);
                 let to = snapshot.nodes.iter().find(|node| node.id == segment.to);
                 if let (Some(from), Some(to)) = (from, to) {
-                    let t = vehicle.progress as f32;
+                    let t = interpolated_progress(
+                        vehicle,
+                        view_model
+                            .previous_snapshot
+                            .vehicles
+                            .iter()
+                            .find(|candidate| candidate.id == vehicle.id),
+                        view_model.interpolation_alpha,
+                    );
                     let x = from.position.x as f32
                         + (to.position.x as f32 - from.position.x as f32) * t;
                     let y = from.position.y as f32
@@ -230,6 +240,22 @@ pub fn draw_snapshot(ui: &mut Ui, snapshot: &Snapshot, state: &mut CanvasState, 
             }
         }
     }
+}
+
+fn interpolated_progress(
+    current: &VehicleSnapshot,
+    previous: Option<&VehicleSnapshot>,
+    alpha: f32,
+) -> f32 {
+    if let Some(previous) = previous {
+        if previous.current_segment == current.current_segment {
+            let previous_progress = previous.progress as f32;
+            let current_progress = current.progress as f32;
+            return previous_progress + (current_progress - previous_progress) * alpha.clamp(0.0, 1.0);
+        }
+    }
+
+    current.progress as f32
 }
 
 fn draw_grid(painter: &Painter, rect: Rect, state: &CanvasState, _theme: &FluentTheme) {

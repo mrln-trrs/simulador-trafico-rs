@@ -1,3 +1,4 @@
+use crate::app::clock::FixedStepClock;
 use crate::generation::fixtures::demo_scenario;
 use crate::integration::commands::Command;
 use crate::integration::snapshots::Snapshot;
@@ -12,18 +13,18 @@ use std::time::Instant;
 pub struct SimulatorApp {
     engine: SimulationEngine,
     canvas: CanvasState,
+    previous_snapshot: Snapshot,
     last_snapshot: Snapshot,
     theme: FluentTheme,
     playback: PlaybackControls,
     tools: ToolPanel,
-    selected_element: Option<String>,
-    last_frame_time: Instant,
-    mouse_moved_this_frame: bool,
+    clock: FixedStepClock,
     ui_scale: f32,
 }
 
 impl SimulatorApp {
     pub fn new(scenario: crate::model::Scenario) -> Self {
+        let now = Instant::now();
         let engine =
             SimulationEngine::new(scenario).expect("el escenario de demostración debe ser válido");
         let last_snapshot = engine.snapshot();
@@ -31,63 +32,81 @@ impl SimulatorApp {
         Self {
             engine,
             canvas: CanvasState::default(),
+            previous_snapshot: last_snapshot.clone(),
             last_snapshot,
             theme: FluentTheme::dark(),
             playback: PlaybackControls::default(),
             tools: ToolPanel::default(),
-            selected_element: None,
-            last_frame_time: Instant::now(),
-            mouse_moved_this_frame: false,
+            clock: FixedStepClock::new(now),
             ui_scale: 1.0,
         }
     }
 
+    fn play_simulation(&mut self) {
+        self.playback.play();
+        self.engine.play();
+    }
+
+    fn pause_simulation(&mut self) {
+        self.playback.pause();
+        self.engine.pause();
+    }
+
+    fn step_simulation(&mut self, steps: u32) {
+        for _ in 0..steps {
+            if self.playback.state == SimulationState::Completed {
+                self.engine.pause();
+                break;
+            }
+
+            self.previous_snapshot = self.last_snapshot.clone();
+            self.playback.advance_tick();
+            self.engine.advance_tick();
+            self.last_snapshot = self.engine.snapshot();
+
+            if self.playback.state == SimulationState::Completed {
+                self.engine.pause();
+                break;
+            }
+        }
+    }
+
+    fn reset_simulation(&mut self) {
+        self.playback.reset();
+        self.engine.reset();
+        self.previous_snapshot = self.engine.snapshot();
+        self.last_snapshot = self.previous_snapshot.clone();
+        self.clock.reset(Instant::now());
+    }
+
     fn apply_command(&mut self, command: Command) {
         match command {
-            Command::Play => self.playback.play(),
-            Command::Pause => self.playback.pause(),
-            Command::Step(amount) => {
-                for _ in 0..amount {
-                    self.playback.advance_tick();
-                    self.engine.advance_tick();
-                }
-            }
-            Command::Reset => {
-                self.playback.reset();
-                self.engine.reset();
-            }
+            Command::Play => self.play_simulation(),
+            Command::Pause => self.pause_simulation(),
+            Command::Step(amount) => self.step_simulation(amount),
+            Command::Reset => self.reset_simulation(),
             Command::LoadDemo => {
                 self.engine = SimulationEngine::new(demo_scenario())
                     .expect("el escenario de demostración debe ser válido");
                 self.playback.reset();
+                self.previous_snapshot = self.engine.snapshot();
+                self.last_snapshot = self.previous_snapshot.clone();
+                self.clock.reset(Instant::now());
             }
         }
         self.last_snapshot = self.engine.snapshot();
     }
     
-    fn update_simulation(&mut self) {
-        // Lógica de avance por mouse (cuando está habilitado)
-        if self.playback.mouse_controls_ticks {
-            if self.playback.should_advance_tick(self.mouse_moved_this_frame) {
-                if self.engine.is_running() {
-                    self.engine.advance_tick();
-                    self.playback.advance_tick();
-                }
-            }
+    fn update_simulation(&mut self, now: Instant) {
+        let steps_due = self.clock.drain_steps(
+            now,
+            self.engine.is_running(),
+            self.playback.effective_ticks_per_second(),
+        );
+
+        if steps_due > 0 {
+            self.step_simulation(steps_due);
         }
-        
-        // Simulación basada en frames si no está controlada por mouse
-        if !self.playback.mouse_controls_ticks {
-            if self.playback.should_advance_tick_frame_based(self.mouse_moved_this_frame) {
-                if self.engine.is_running() {
-                    self.engine.advance_tick();
-                    self.playback.advance_tick();
-                }
-            }
-        }
-        
-        self.last_snapshot = self.engine.snapshot();
-        self.last_frame_time = Instant::now();
     }
 }
 
@@ -111,13 +130,17 @@ impl eframe::App for SimulatorApp {
             ctx.set_style(style);
         }
         
-        // Detecta si el mouse se movió
-        self.mouse_moved_this_frame = ctx.input(|i| i.pointer.delta().length_sq() > 0.0);
-        
         // Actualiza la simulación
-        self.update_simulation();
+        self.update_simulation(Instant::now());
 
-        let view_model = ViewModel::from_snapshot(self.last_snapshot.clone());
+        let view_model = ViewModel::from_snapshots(
+            self.previous_snapshot.clone(),
+            self.last_snapshot.clone(),
+            self.clock.interpolation_alpha(
+                self.engine.is_running(),
+                self.playback.effective_ticks_per_second(),
+            ),
+        );
 
         // ===== BARRA SUPERIOR =====
         TopBottomPanel::top("toolbar").show(ctx, |ui| {
@@ -134,21 +157,19 @@ impl eframe::App for SimulatorApp {
                     
                     // Controles básicos
                     if ui.button("▶ Play").clicked() {
-                        self.playback.play();
+                        self.apply_command(Command::Play);
                     }
                     
                     if ui.button("⏸ Pause").clicked() {
-                        self.playback.pause();
+                        self.apply_command(Command::Pause);
                     }
                     
                     if ui.button("⏭ Siguiente").clicked() {
-                        self.playback.advance_tick();
-                        self.engine.advance_tick();
+                        self.apply_command(Command::Step(1));
                     }
                     
                     if ui.button("⏹ Reset").clicked() {
-                        self.playback.reset();
-                        self.engine.reset();
+                        self.apply_command(Command::Reset);
                     }
                     
                     ui.separator();
@@ -359,7 +380,7 @@ impl eframe::App for SimulatorApp {
 
         // ===== CANVAS CENTRAL =====
         CentralPanel::default().show(ctx, |ui| {
-            draw_snapshot(ui, &view_model.snapshot, &mut self.canvas, &self.theme);
+            draw_snapshot(ui, &view_model, &mut self.canvas, &self.theme);
         });
         
         // Solicita repaint para animación fluida

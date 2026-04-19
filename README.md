@@ -14,7 +14,8 @@ Simulador modular de tráfico urbano en Rust con arquitectura limpia y frontend 
 ### Frontend - Interfaz Fluent Design
 - **Diseño moderno** inspirado en Fluent Design de Windows
 - **3 paneles**: Herramientas, Canvas, Inspector
-- **Control por mouse**: Los ticks avanzan solo cuando hay movimiento
+- **Scheduler determinista**: Los ticks avanzan por tiempo real con pasos fijos
+- **Interpolación visual**: El render suaviza el movimiento entre pasos discretos
 - **Control de velocidad**: 0.25x a 4.0x
 - **Métricas en vivo**: Visualización de estadísticas en tiempo real
 - **Grid y snap**: Herramientas de edición precisas
@@ -43,8 +44,8 @@ cargo test
 1. Ejecuta `cargo run`
 2. La interfaz muestra un escenario de demostración
 3. Haz clic en **Play** para iniciar
-4. **Mueve el mouse** para que avancen los ticks
-5. Observa los vehículos moviéndose en la red
+4. Ajusta **Speed** y **Ticks/Segundo** para controlar la tasa de avance
+5. Observa los vehículos moviéndose en la red con paso determinista
 
 ### Panel Izquierdo - Herramientas
 - **🔍 Seleccionar**: Selecciona elementos
@@ -110,18 +111,22 @@ src/
 
 ## 💡 Características Especiales
 
-### Control por Movimiento del Mouse ⭐
+### Scheduler Determinista por Tiempo Real ⭐
 ```
-SIMULACIÓN PARADA:
-Cuando el mouse está inmóvil > 500ms
-→ La simulación se pausa automáticamente
+RELOJ REAL DE LA PC:
+El bucle mide el tiempo transcurrido con `Instant`
+→ Un acumulador decide cuántos pasos consumir
 
-SIMULACIÓN EN MARCHA:
-Cuando hay movimiento del mouse
-→ Los ticks avanzan normalmente
+PASO FIJO:
+Cada tick representa un paso discreto del motor
+→ La tasa visual depende de `Ticks/Segundo` y `Speed`
+
+RENDER SUAVE:
+La UI interpola entre snapshots consecutivos
+→ La simulación sigue siendo discreta, pero se ve continua
 ```
 
-Útil para inspeccionar la red sin que avance automáticamente.
+Útil para que la simulación sea reproducible y no dependa del FPS ni del mouse.
 
 ### Interfaz Responsiva
 - Paneles redimensionables

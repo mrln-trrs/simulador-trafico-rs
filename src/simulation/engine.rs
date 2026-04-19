@@ -51,7 +51,7 @@ impl SimulationEngine {
         Ok(Self {
             scenario,
             tick: 0,
-            running: true,
+            running: false,
             vehicles: BTreeMap::new(),
             segment_queues,
             signals,
