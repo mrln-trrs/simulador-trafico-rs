@@ -9,11 +9,14 @@ Simulador modular de tráfico urbano en Rust con arquitectura limpia y frontend 
 - Motor determinista por ticks
 - Contratos compartidos (snapshots, comandos)
 - Persistencia JSON/TOML
-- Simul ación realista de flujo vehicular
+- Simulación realista de flujo vehicular
 
-### Frontend - Interfaz Fluent Design
+### Frontend - Traffix Pro / Interfaz Fluent Design
 - **Diseño moderno** inspirado en Fluent Design de Windows
-- **3 paneles**: Herramientas, Canvas, Inspector
+- **Canvas isométrico central** con red vial, carriles, pasos peatonales y capa de calor
+- **Panel izquierdo** para trazado, señalización, escenarios y tipos de vehículos
+- **Panel derecho** para propiedades contextuales, visualización y KPI
+- **Barra superior e inferior** para control temporal, línea de tiempo y análisis
 - **Scheduler determinista**: Los ticks avanzan por tiempo real con pasos fijos
 - **Interpolación visual**: El render suaviza el movimiento entre pasos discretos
 - **Control de velocidad**: 0.25x a 4.0x
@@ -46,8 +49,9 @@ cargo test
 3. Haz clic en **Play** para iniciar
 4. Ajusta **Speed** y **Ticks/Segundo** para controlar la tasa de avance
 5. Observa los vehículos moviéndose en la red con paso determinista
+6. Usa la barra superior para reproducir, pausar, avanzar o rebobinar, y la franja inferior para seguir eventos y métricas
 
-### Panel Izquierdo - Herramientas
+### Panel Izquierdo - Herramientas de Diseño de Red
 - **🔍 Seleccionar**: Selecciona elementos
 - **● Crear Nodo**: Agrega puntos de intersección
 - **⟶ Crear Tramo**: Conecta nodos
@@ -56,16 +60,38 @@ cargo test
 - **Snap a grid**: Alineación precisa
 - **Velocidad**: Controla la rapidez de simulación
 
-### Panel Central - Canvas
+### Panel Central - Canvas de Simulación
 - **Zoom**: Rueda del mouse
 - **Pan**: Botón derecho + arrastrar
 - **Seleccionar**: Clic izquierdo en elemento
 - **Grid**: Guía de referencia espacial
+- **Mapa de calor**: Superposición para detectar congestión y puntos críticos
 
-### Panel Derecho - Inspector
+### Panel Derecho - Propiedades y Visualización
 - Estado actual de la simulación
 - Estadísticas: Ticks, vehículos, viaje promedio
 - Lista de vehículos activos con progreso
+- Ajustes visuales y KPIs en tiempo real
+
+## 🖥️ Traffix Pro
+
+La interfaz está pensada como una estación de control completa para diseño, observación y análisis.
+
+### 1. Canvas de Simulación Isométrica
+
+El panel central prioriza una lectura clara del escenario con perspectiva isométrica, capas visuales y superposiciones térmicas para congestión.
+
+### 2. Herramientas de Diseño de Red
+
+La barra lateral izquierda agrupa edición de trazado, creación de intersecciones complejas, señalización, carga de escenarios y definición de tipos de vehículos.
+
+### 3. Panel de Propiedades y Visualización
+
+La barra lateral derecha concentra propiedades contextuales, modo de vista, opacidad del mapa de calor, iluminación y KPIs operativos.
+
+### 4. Controles de Simulación y Análisis
+
+La parte superior e inferior de la UI se reserva para reproducción, control temporal, línea de tiempo, gráficos comparativos y seguimiento de eventos.
 
 ## 🎨 Tema Fluent Design
 
