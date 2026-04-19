@@ -47,6 +47,27 @@ impl SignalPlan {
     }
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
+pub enum VehicleType {
+    Emergency,
+    Bus,
+    Car,
+    Truck,
+    Motorcycle,
+}
+
+impl VehicleType {
+    pub fn priority_rank(self) -> u8 {
+        match self {
+            VehicleType::Emergency => 0,
+            VehicleType::Bus => 1,
+            VehicleType::Car => 2,
+            VehicleType::Truck => 3,
+            VehicleType::Motorcycle => 4,
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct Node {
     pub id: NodeId,
@@ -140,6 +161,7 @@ pub enum VehicleStatus {
 pub struct Vehicle {
     pub id: VehicleId,
     pub name: String,
+    pub vehicle_type: VehicleType,
     pub origin: NodeId,
     pub destination: NodeId,
     pub route: Vec<RoadId>,
@@ -159,9 +181,21 @@ impl Vehicle {
         destination: NodeId,
         route: Vec<RoadId>,
     ) -> Self {
+        Self::with_type(id, name, origin, destination, route, VehicleType::Car)
+    }
+
+    pub fn with_type(
+        id: VehicleId,
+        name: impl Into<String>,
+        origin: NodeId,
+        destination: NodeId,
+        route: Vec<RoadId>,
+        vehicle_type: VehicleType,
+    ) -> Self {
         Self {
             id,
             name: name.into(),
+            vehicle_type,
             origin,
             destination,
             route,
@@ -189,6 +223,7 @@ impl Vehicle {
 #[derive(Clone, Debug)]
 pub struct VehicleSpawn {
     pub departure_tick: u32,
+    pub vehicle_type: VehicleType,
     pub origin: NodeId,
     pub destination: NodeId,
     pub name: String,
@@ -201,8 +236,19 @@ impl VehicleSpawn {
         origin: NodeId,
         destination: NodeId,
     ) -> Self {
+        Self::with_type(departure_tick, name, origin, destination, VehicleType::Car)
+    }
+
+    pub fn with_type(
+        departure_tick: u32,
+        name: impl Into<String>,
+        origin: NodeId,
+        destination: NodeId,
+        vehicle_type: VehicleType,
+    ) -> Self {
         Self {
             departure_tick,
+            vehicle_type,
             origin,
             destination,
             name: name.into(),

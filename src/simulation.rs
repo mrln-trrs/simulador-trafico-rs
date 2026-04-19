@@ -2,7 +2,9 @@ use std::cmp::Reverse;
 use std::collections::{BTreeMap, BinaryHeap, VecDeque};
 use std::fmt;
 
-use crate::model::{Network, NodeId, NodeKind, RoadId, Vehicle, VehicleId, VehicleSpawn, VehicleStatus};
+use crate::model::{
+    Network, NodeId, NodeKind, RoadId, Vehicle, VehicleId, VehicleSpawn, VehicleStatus,
+};
 
 const DEFAULT_DEADLOCK_WAIT_THRESHOLD: u32 = 5;
 
@@ -11,6 +13,15 @@ struct RouteSearchOptions {
     avoid_road: Option<RoadId>,
     avoid_full_roads: bool,
     respect_signals: bool,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct QueueCandidate {
+    queue_index: usize,
+    vehicle_id: VehicleId,
+    next_road_id: Option<RoadId>,
+    waiting_ticks: u32,
+    priority_key: (u8, Reverse<u32>, usize, VehicleId),
 }
 
 #[derive(Debug, Clone)]
@@ -266,6 +277,7 @@ impl Simulation {
     fn spawn_vehicle(&mut self, spawn: VehicleSpawn, events: &mut Vec<SimulationEvent>) {
         let VehicleSpawn {
             departure_tick: _,
+            vehicle_type,
             origin,
             destination,
             name,
@@ -292,7 +304,14 @@ impl Simulation {
         let vehicle_id = self.next_vehicle_id;
         self.next_vehicle_id += 1;
 
-        let vehicle = Vehicle::new(vehicle_id, name.clone(), origin, destination, route.clone());
+        let vehicle = Vehicle::with_type(
+            vehicle_id,
+            name.clone(),
+            origin,
+            destination,
+            route.clone(),
+            vehicle_type,
+        );
         self.vehicles.insert(vehicle_id, vehicle);
         if let Some(vehicle) = self.vehicles.get_mut(&vehicle_id) {
             vehicle.queued_release_tick = self.current_tick + 1;
@@ -473,91 +492,155 @@ impl Simulation {
 
         for node_id in node_ids {
             loop {
-                let Some(vehicle_id) = self
-                    .node_queues
-                    .get(&node_id)
-                    .and_then(|queue| queue.front().copied())
-                else {
-                    break;
-                };
-
-                let waiting_ticks = self
-                    .vehicles
-                    .get(&vehicle_id)
-                    .map(|vehicle| vehicle.waiting_ticks_at_node)
-                    .unwrap_or(0);
-
-                let queued_release_tick = self
-                    .vehicles
-                    .get(&vehicle_id)
-                    .map(|vehicle| vehicle.queued_release_tick)
-                    .unwrap_or(0);
-
-                if self.current_tick < queued_release_tick {
-                    break;
+                if let Some(candidate) = self.select_completion_candidate(node_id) {
+                    self.complete_queue_vehicle(node_id, candidate, events);
+                    continue;
                 }
 
-                if waiting_ticks == 0 {
-                    break;
-                }
+                let Some(candidate) = self.select_departable_candidate(node_id) else {
+                    let Some(candidate) = self.select_deadlock_candidate(node_id) else {
+                        break;
+                    };
 
-                let maybe_next_road = {
-                    let vehicle = self
-                        .vehicles
-                        .get(&vehicle_id)
-                        .expect("vehicle should exist while it is queued");
-                    if vehicle.next_road_index >= vehicle.route.len() {
-                        None
-                    } else {
-                        Some(vehicle.route[vehicle.next_road_index])
+                    let Some(next_road_id) = candidate.next_road_id else {
+                        break;
+                    };
+
+                    if self.try_deadlock_escape(
+                        node_id,
+                        candidate.queue_index,
+                        candidate.vehicle_id,
+                        next_road_id,
+                        candidate.waiting_ticks,
+                        events,
+                    ) {
+                        continue;
                     }
+
+                    break;
                 };
 
-                let Some(next_road_id) = maybe_next_road else {
-                    self.node_queues
-                        .get_mut(&node_id)
-                        .expect("node queue should exist")
-                        .pop_front();
-                    let vehicle = self
-                        .vehicles
-                        .get_mut(&vehicle_id)
-                        .expect("vehicle should exist");
-                    vehicle.status = VehicleStatus::Finished;
-                    events.push(SimulationEvent::Completed {
-                        vehicle_id,
-                        destination: vehicle.destination,
-                        wait_time: vehicle.total_wait_time,
-                        travel_time: vehicle.total_travel_time,
-                    });
+                let Some(next_road_id) = candidate.next_road_id else {
                     continue;
                 };
 
-                if waiting_ticks >= self.deadlock_wait_threshold {
-                    if self.try_deadlock_escape(node_id, vehicle_id, next_road_id, waiting_ticks, events) {
-                        continue;
-                    }
-                }
-
-                if !self.can_depart(node_id, next_road_id) {
-                    break;
-                }
-
-                let Some(lane_index) = self.find_lane_with_capacity(next_road_id) else {
-                    break;
-                };
+                let lane_index = self
+                    .find_lane_with_capacity(next_road_id)
+                    .expect("selected candidate should have free capacity");
 
                 self.node_queues
                     .get_mut(&node_id)
                     .expect("node queue should exist")
-                    .pop_front();
-                self.enter_road(vehicle_id, next_road_id, lane_index, events);
+                    .remove(candidate.queue_index);
+                self.enter_road(candidate.vehicle_id, next_road_id, lane_index, events);
             }
         }
+    }
+
+    fn complete_queue_vehicle(
+        &mut self,
+        node_id: NodeId,
+        candidate: QueueCandidate,
+        events: &mut Vec<SimulationEvent>,
+    ) {
+        self.node_queues
+            .get_mut(&node_id)
+            .expect("node queue should exist")
+            .remove(candidate.queue_index);
+
+        let vehicle = self
+            .vehicles
+            .get_mut(&candidate.vehicle_id)
+            .expect("vehicle should exist while it is queued");
+        vehicle.status = VehicleStatus::Finished;
+        events.push(SimulationEvent::Completed {
+            vehicle_id: candidate.vehicle_id,
+            destination: vehicle.destination,
+            wait_time: vehicle.total_wait_time,
+            travel_time: vehicle.total_travel_time,
+        });
+    }
+
+    fn queue_candidate(&self, queue_index: usize, vehicle_id: VehicleId) -> Option<QueueCandidate> {
+        let vehicle = self.vehicles.get(&vehicle_id)?;
+        if self.current_tick < vehicle.queued_release_tick || vehicle.waiting_ticks_at_node == 0 {
+            return None;
+        }
+
+        Some(QueueCandidate {
+            queue_index,
+            vehicle_id,
+            next_road_id: vehicle.route.get(vehicle.next_road_index).copied(),
+            waiting_ticks: vehicle.waiting_ticks_at_node,
+            priority_key: (
+                vehicle.vehicle_type.priority_rank(),
+                Reverse(vehicle.waiting_ticks_at_node),
+                queue_index,
+                vehicle_id,
+            ),
+        })
+    }
+
+    fn select_completion_candidate(&self, node_id: NodeId) -> Option<QueueCandidate> {
+        let queue = self.node_queues.get(&node_id)?;
+
+        queue
+            .iter()
+            .copied()
+            .enumerate()
+            .filter_map(|(queue_index, vehicle_id)| {
+                let candidate = self.queue_candidate(queue_index, vehicle_id)?;
+                candidate.next_road_id.is_none().then_some(candidate)
+            })
+            .min_by_key(|candidate| candidate.priority_key)
+    }
+
+    fn select_departable_candidate(&self, node_id: NodeId) -> Option<QueueCandidate> {
+        let queue = self.node_queues.get(&node_id)?;
+
+        queue
+            .iter()
+            .copied()
+            .enumerate()
+            .filter_map(|(queue_index, vehicle_id)| {
+                let candidate = self.queue_candidate(queue_index, vehicle_id)?;
+                let next_road_id = candidate.next_road_id?;
+
+                if !self.can_depart(node_id, next_road_id) {
+                    return None;
+                }
+
+                self.find_lane_with_capacity(next_road_id).map(|_| candidate)
+            })
+            .min_by_key(|candidate| candidate.priority_key)
+    }
+
+    fn select_deadlock_candidate(&self, node_id: NodeId) -> Option<QueueCandidate> {
+        let queue = self.node_queues.get(&node_id)?;
+
+        queue
+            .iter()
+            .copied()
+            .enumerate()
+            .filter_map(|(queue_index, vehicle_id)| {
+                let candidate = self.queue_candidate(queue_index, vehicle_id)?;
+                if candidate.waiting_ticks < self.deadlock_wait_threshold {
+                    return None;
+                }
+
+                if candidate.next_road_id.is_none() {
+                    return None;
+                }
+
+                Some(candidate)
+            })
+            .min_by_key(|candidate| candidate.priority_key)
     }
 
     fn try_deadlock_escape(
         &mut self,
         node_id: NodeId,
+        queue_index: usize,
         vehicle_id: VehicleId,
         avoided_road: RoadId,
         waiting_ticks: u32,
@@ -587,7 +670,14 @@ impl Simulation {
             });
 
         let Some(new_route) = new_route else {
-            return self.force_emergency_release(node_id, vehicle_id, avoided_road, waiting_ticks, events);
+            return self.force_emergency_release(
+                node_id,
+                queue_index,
+                vehicle_id,
+                avoided_road,
+                waiting_ticks,
+                events,
+            );
         };
 
         if new_route.is_empty() {
@@ -609,7 +699,7 @@ impl Simulation {
         self.node_queues
             .get_mut(&node_id)
             .expect("node queue should exist")
-            .pop_front();
+            .remove(queue_index);
 
         events.push(SimulationEvent::Rerouted {
             vehicle_id,
@@ -635,6 +725,7 @@ impl Simulation {
     fn force_emergency_release(
         &mut self,
         node_id: NodeId,
+        queue_index: usize,
         vehicle_id: VehicleId,
         avoided_road: RoadId,
         waiting_ticks: u32,
@@ -659,7 +750,7 @@ impl Simulation {
         self.node_queues
             .get_mut(&node_id)
             .expect("node queue should exist")
-            .pop_front();
+            .remove(queue_index);
 
         events.push(SimulationEvent::Rerouted {
             vehicle_id,
@@ -913,7 +1004,7 @@ impl Simulation {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::model::{Node, NodeKind, RoadSegment, VehicleSpawn};
+    use crate::model::{Node, NodeKind, RoadSegment, VehicleSpawn, VehicleType};
     use std::collections::VecDeque;
 
     #[test]
@@ -949,6 +1040,31 @@ mod tests {
 
         let second_tick_events = simulation.step();
         assert!(second_tick_events.iter().any(|event| matches!(event, SimulationEvent::EnteredRoad { .. })));
+    }
+
+    #[test]
+    fn higher_priority_vehicle_can_pass_before_fifo_order() {
+        let mut network = Network::new();
+        network.add_node(Node::new(1, "Origen", NodeKind::Entry));
+        network.add_node(Node::new(2, "Destino", NodeKind::Exit));
+        network.add_road(RoadSegment::new(1, "Camino", 1, 2, 60.0, 1, 60.0, 1));
+
+        let mut simulation = Simulation::new(network);
+        simulation.schedule_spawn(VehicleSpawn::new(0, "Auto 1", 1, 2));
+        simulation.schedule_spawn(VehicleSpawn::with_type(0, "Bus 2", 1, 2, VehicleType::Bus));
+
+        let first_tick_events = simulation.step();
+        assert!(first_tick_events.iter().any(|event| matches!(event, SimulationEvent::Spawned { vehicle_id: 1, .. })));
+        assert!(first_tick_events.iter().any(|event| matches!(event, SimulationEvent::Spawned { vehicle_id: 2, .. })));
+
+        let second_tick_events = simulation.step();
+        assert!(second_tick_events.iter().any(|event| matches!(event, SimulationEvent::EnteredRoad { vehicle_id: 2, .. })));
+        assert!(!second_tick_events.iter().any(|event| matches!(event, SimulationEvent::EnteredRoad { vehicle_id: 1, .. })));
+
+        let bus = simulation.vehicles.get(&2).expect("bus should exist");
+        let car = simulation.vehicles.get(&1).expect("car should exist");
+        assert!(matches!(bus.status, VehicleStatus::OnRoad { road_id: 1, .. }));
+        assert!(matches!(car.status, VehicleStatus::WaitingAtNode(1)));
     }
 
     #[test]
