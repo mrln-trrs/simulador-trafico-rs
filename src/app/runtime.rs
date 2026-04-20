@@ -1,4 +1,4 @@
-use crate::presentation::simulator_shell::SimuladorApp;
+use crate::ui::screens::simulator::SimuladorApp;
 
 fn native_options() -> eframe::NativeOptions {
     eframe::NativeOptions {
