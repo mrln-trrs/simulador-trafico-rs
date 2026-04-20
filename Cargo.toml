@@ -6,14 +6,9 @@ edition = "2021"
 [dependencies]
 egui = "0.27"
 eframe = { version = "0.27", features = ["persistence"] }
-egui_extras = { version = "0.27", features = ["image"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-thiserror = "1"
 toml = "0.8"
-
-# UI/Graphics
-epaint = "0.27"
 
 # Time/Input handling
 instant = "0.1"

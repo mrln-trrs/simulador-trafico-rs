@@ -1,4 +1,3 @@
-use crate::presentation::app_shell::SimulatorApp;
 use crate::presentation::simulator_shell::SimuladorApp;
 
 fn native_options() -> eframe::NativeOptions {
@@ -10,14 +9,6 @@ fn native_options() -> eframe::NativeOptions {
         persist_window: false,
         ..Default::default()
     }
-}
-
-pub fn launch(app: SimulatorApp) -> eframe::Result<()> {
-    eframe::run_native(
-        "Simulador de Trafico",
-        native_options(),
-        Box::new(move |_cc| Box::new(app)),
-    )
 }
 
 pub fn launch_simulator() -> eframe::Result<()> {
