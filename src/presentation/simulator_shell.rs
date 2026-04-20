@@ -1,10 +1,12 @@
 use std::{collections::HashMap, sync::Arc};
 
-use egui::{CentralPanel, Color32, Context, FontId, Painter, Pos2, Rect, Sense, Shape, Stroke, Ui, Vec2};
+use egui::{CentralPanel, Color32, Context, FontId, Painter, Pos2, Rect, Sense, Shape, Stroke, TopBottomPanel, Ui, Vec2, ViewportCommand};
+use serde::{Deserialize, Serialize};
 
 const DEFAULT_ZOOM: f32 = 48.0;
 const MIN_ZOOM: f32 = 8.0;
 const MAX_ZOOM: f32 = 400.0;
+const MANUAL_ZOOM_STEP: f32 = 1.15;
 const BASE_GRID_10M_ZOOM_THRESHOLD: f32 = 28.0;
 const SUBGRID_10CM_ZOOM_THRESHOLD: f32 = 80.0;
 const SUBGRID_1CM_ZOOM_THRESHOLD: f32 = 200.0;
@@ -19,11 +21,37 @@ const STATUS_SCALE_TEMPLATE: &str = "| Escala: 1 px = -1000.0000 m |";
 const STATUS_METERS_PER_PIXEL_TEMPLATE: &str = "| Metro/píxel: 1 m = 400.0 px |";
 const STATUS_LEVEL_TEMPLATE: &str = "| Nivel: Subgrilla 10 cm |";
 const STATUS_VIEW_TEMPLATE: &str = "| Vista: 9999.9 m × 9999.9 m |";
+const WINDOW_STATE_STORAGE_KEY: &str = "simulador_window_state";
 
 #[derive(Default)]
 pub struct SimuladorApp {
+    window_state: SavedWindowState,
     viewport: GridViewport,
     cache: GridRenderCache,
+}
+
+#[derive(Clone, Copy, Default, Serialize, Deserialize)]
+struct SavedWindowState {
+    maximized: bool,
+    windowed_position: Option<[f32; 2]>,
+    windowed_inner_size: Option<[f32; 2]>,
+}
+
+impl SavedWindowState {
+    fn apply_to_context(self, ctx: &Context) {
+        if self.maximized {
+            ctx.send_viewport_cmd(ViewportCommand::Maximized(true));
+            return;
+        }
+
+        if let Some(position) = self.windowed_position {
+            ctx.send_viewport_cmd(ViewportCommand::OuterPosition(Pos2::new(position[0], position[1])));
+        }
+
+        if let Some(inner_size) = self.windowed_inner_size {
+            ctx.send_viewport_cmd(ViewportCommand::InnerSize(Vec2::new(inner_size[0], inner_size[1])));
+        }
+    }
 }
 
 #[derive(Default)]
@@ -79,6 +107,54 @@ impl GridViewport {
         let world_point = self.screen_to_world(rect, screen_point);
         self.zoom = (self.zoom * zoom_factor).clamp(MIN_ZOOM, MAX_ZOOM);
         self.pan = (screen_point - rect.center()) / self.zoom - world_point;
+    }
+
+    fn zoom_by(&mut self, factor: f32) {
+        self.zoom = (self.zoom * factor).clamp(MIN_ZOOM, MAX_ZOOM);
+    }
+
+    fn reset_zoom(&mut self) {
+        self.zoom = DEFAULT_ZOOM;
+    }
+
+    fn center_on_origin(&mut self) {
+        self.pan = Vec2::ZERO;
+    }
+}
+
+impl SimuladorApp {
+    pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
+        let window_state: SavedWindowState = cc
+            .storage
+            .and_then(|storage| eframe::get_value(storage, WINDOW_STATE_STORAGE_KEY))
+            .unwrap_or_default();
+
+        window_state.apply_to_context(&cc.egui_ctx);
+
+        Self {
+            window_state,
+            ..Default::default()
+        }
+    }
+
+    fn sync_window_state(&mut self, ctx: &Context) {
+        let (maximized, inner_rect, outer_rect) = ctx.input(|input| {
+            let viewport = input.viewport();
+            (viewport.maximized, viewport.inner_rect, viewport.outer_rect)
+        });
+
+        if let Some(maximized) = maximized {
+            self.window_state.maximized = maximized;
+        }
+
+        if self.window_state.maximized {
+            return;
+        }
+
+        if let (Some(inner_rect), Some(outer_rect)) = (inner_rect, outer_rect) {
+            self.window_state.windowed_position = Some([outer_rect.min.x, outer_rect.min.y]);
+            self.window_state.windowed_inner_size = Some([inner_rect.width(), inner_rect.height()]);
+        }
     }
 }
 
@@ -136,8 +212,44 @@ impl VisibleWorldBounds {
 
 impl eframe::App for SimuladorApp {
     fn update(&mut self, ctx: &Context, _frame: &mut eframe::Frame) {
+        self.sync_window_state(ctx);
+
         let mut pointer_world = None;
         let mut viewport_rect = Rect::NOTHING;
+
+        TopBottomPanel::top("menu_bar")
+            .show_separator_line(false)
+            .show(ctx, |ui| {
+                egui::menu::bar(ui, |ui| {
+                    ui.menu_button("Vista", |ui| {
+                        if ui.button("Zoom +").clicked() {
+                            self.viewport.zoom_by(MANUAL_ZOOM_STEP);
+                            ui.close_menu();
+                            ctx.request_repaint();
+                        }
+
+                        if ui.button("Zoom -").clicked() {
+                            self.viewport.zoom_by(1.0 / MANUAL_ZOOM_STEP);
+                            ui.close_menu();
+                            ctx.request_repaint();
+                        }
+
+                        ui.separator();
+
+                        if ui.button("Restablecer zoom").clicked() {
+                            self.viewport.reset_zoom();
+                            ui.close_menu();
+                            ctx.request_repaint();
+                        }
+
+                        if ui.button("Centrar vista al origen 0,0").clicked() {
+                            self.viewport.center_on_origin();
+                            ui.close_menu();
+                            ctx.request_repaint();
+                        }
+                    });
+                });
+            });
 
         CentralPanel::default().show(ctx, |ui| {
             let available_size = ui.available_size_before_wrap();
@@ -180,6 +292,10 @@ impl eframe::App for SimuladorApp {
             .show(ctx, |ui| {
                 draw_status_bar(ui, &self.viewport, viewport_rect, pointer_world, &mut self.cache);
             });
+    }
+
+    fn save(&mut self, storage: &mut dyn eframe::Storage) {
+        eframe::set_value(storage, WINDOW_STATE_STORAGE_KEY, &self.window_state);
     }
 }
 
