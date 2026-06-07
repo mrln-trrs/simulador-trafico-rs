@@ -114,17 +114,13 @@ impl TrackedWindow for SimulatorWindow {
 
 // 5. Implementación de la Ventana de Configuración Aislada
 pub struct SettingsWindow {
-    temp_ui_zoom: f32,
-    temp_text_scale: f32,
-    initialized: bool,
+    menu_app: crate::ui::screens::menu::MenuApp,
 }
 
 impl SettingsWindow {
     pub fn new() -> Self {
         Self {
-            temp_ui_zoom: 1.0,
-            temp_text_scale: 1.0,
-            initialized: false,
+            menu_app: crate::ui::screens::menu::MenuApp::new(),
         }
     }
 }
@@ -140,84 +136,7 @@ impl TrackedWindow for SettingsWindow {
         let mut rr = RedrawResponse::default();
         let ctx = &egui.egui_ctx;
 
-        // Inicializar si no se ha hecho
-        if !self.initialized {
-            self.temp_ui_zoom = c.simulator_app.ui_zoom;
-            self.temp_text_scale = c.simulator_app.text_scale;
-            self.initialized = true;
-        }
-
-        // Guardar la posición y tamaño actuales de la ventana
-        let size = window.inner_size();
-        if let Ok(pos) = window.outer_position() {
-            c.simulator_app.settings_window_size = Some([size.width, size.height]);
-            c.simulator_app.settings_window_pos = Some([pos.x, pos.y]);
-        }
-
-        // Agregar un panel inferior para los botones Aplicar, Cancelar y Restablecer
-        egui::TopBottomPanel::bottom("settings_buttons").show(ctx, |ui| {
-            ui.add_space(6.0);
-            ui.horizontal(|ui| {
-                // Alineación a la derecha
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if ui.button("Aplicar").clicked() {
-                        c.simulator_app.ui_zoom = self.temp_ui_zoom;
-                        c.simulator_app.text_scale = self.temp_text_scale;
-                        if let Some(ref sim_ctx) = c.simulator_app.egui_ctx {
-                            sim_ctx.request_repaint();
-                        }
-                        window.request_redraw();
-                    }
-                    if ui.button("Cancelar").clicked() {
-                        rr.quit = true;
-                    }
-                    if ui.button("Restablecer").clicked() {
-                        self.temp_ui_zoom = 1.0;
-                        self.temp_text_scale = 1.0;
-                    }
-                });
-            });
-            ui.add_space(6.0);
-        });
-
-        egui::CentralPanel::default().show(ctx, |ui| {
-            ui.vertical(|ui| {
-                ui.heading("Configuración de Interfaz");
-                ui.add_space(8.0);
-
-                // Configurar Zoom
-                ui.horizontal(|ui| {
-                    ui.label("Zoom UI:");
-                    if ui.button("-").clicked() {
-                        self.temp_ui_zoom = (self.temp_ui_zoom - 0.1).max(0.5);
-                    }
-                    let mut zoom_val = self.temp_ui_zoom;
-                    if ui.add(egui::DragValue::new(&mut zoom_val).speed(0.01).clamp_range(0.5..=3.0)).changed() {
-                        self.temp_ui_zoom = zoom_val;
-                    }
-                    if ui.button("+").clicked() {
-                        self.temp_ui_zoom = (self.temp_ui_zoom + 0.1).min(3.0);
-                    }
-                });
-
-                ui.separator();
-
-                // Configurar Escala de Texto
-                ui.horizontal(|ui| {
-                    ui.label("Texto:");
-                    if ui.button("-").clicked() {
-                        self.temp_text_scale = (self.temp_text_scale - 0.1).max(0.5);
-                    }
-                    let mut scale_val = self.temp_text_scale;
-                    if ui.add(egui::DragValue::new(&mut scale_val).speed(0.01).clamp_range(0.5..=3.0)).changed() {
-                        self.temp_text_scale = scale_val;
-                    }
-                    if ui.button("+").clicked() {
-                        self.temp_text_scale = (self.temp_text_scale + 0.1).min(3.0);
-                    }
-                });
-            });
-        });
+        self.menu_app.show(ctx, &mut c.simulator_app, window, &mut rr);
 
         rr
     }
