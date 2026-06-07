@@ -1,52 +1,93 @@
-# Arquitectura propuesta del simulador de tráfico
+# Arquitectura del simulador de tráfico
 
-Este documento convierte la visión y los planes del repositorio en una estructura tecnica concreta para implementar el proyecto en Rust sin mezclar responsabilidades. Hoy el repositorio contiene principalmente documentacion, asi que esta propuesta funciona como plano base para cuando empiece el codigo.
+Este documento describe la estructura técnica e implementada del proyecto en Rust, garantizando la separación estricta de responsabilidades entre el motor lógico y el visualizador interactivo.
 
-## 1. Lectura del proyecto actual
+## 1. Estructura del proyecto actual
 
-- `idea-simulador` define el sistema completo como una plataforma de simulacion de trafico con backend, frontend y contratos compartidos.
-- `idea-motor` exige un motor determinista, por ticks, con modelo estable y sin dependencias de interfaz.
-- `idea-visualizador` deja claro que la UI solo representa y controla; no decide la logica del trafico.
-- `plan-integracion` pide snapshots, deltas, comandos y versionado de contratos.
-- `plan-motor` y `plan-visualizador` ya separan el trabajo por capas, asi que la arquitectura debe respetar esa division y hacerla visible en el arbol de archivos.
+El proyecto está diseñado bajo una arquitectura limpia y desacoplada, donde:
 
-## 2. Decision arquitectonica
+- El núcleo de dominio es puro y estable.
+- El motor de simulación concentra la mutación de estado.
+- Una capa de integración define contratos de snapshots, deltas y eventos.
+- Una capa de interfaz gráfica (UI) consume snapshots y emite comandos al motor.
 
-La mejor opcion para este proyecto es un **monolito modular** con **Clean Architecture / Ports and Adapters** dentro del mismo repositorio. Eso significa:
+La regla principal de dependencias es simple: **el modelo no depende de nada, la simulación depende del modelo, la UI depende de la capa de integración y la aplicación ensambla todo**.
 
-- un solo punto de arranque para la aplicacion,
-- un nucleo de dominio puro y estable,
-- un motor de simulacion que concentra la mutacion,
-- una capa de contratos compartidos para comunicacion y persistencia,
-- una capa de presentacion que consume snapshots y emite comandos,
-- una composicion explicita en `main.rs` para conectar todo.
+## 2. Flujo de dependencias
 
-La regla principal es simple: **el modelo no depende de nada, la simulacion depende del modelo, la presentacion depende de contratos y la aplicacion solo ensambla**.
-
-## 3. Flujo de dependencias
-
-La direccion de dependencias recomendada es esta:
+La dirección de dependencias en el código es la siguiente:
 
 | Capa | Puede depender de |
 | --- | --- |
 | `app` | todas |
-| `presentation` | `integration` y, si hace falta, tipos de lectura de `model` |
+| `ui` | `integration` y tipos de lectura de `model` |
 | `integration` | `model` |
 | `simulation` | `model` e `integration` |
 | `generation` | `model` e `integration` |
 | `model` | ninguna capa de alto nivel |
 
-El flujo en tiempo de ejecucion queda asi:
+El flujo en tiempo de ejecución queda así:
 
-`presentation -> integration -> app -> simulation -> model`
+`ui (presentación) -> integration -> app -> simulation -> model`
 
-Y para contenido de escenarios:
+Y para la carga y generación de escenarios:
 
 `generation -> model -> integration -> simulation`
 
-## 4. Estructura de archivos propuesta
+### Diagrama de la Arquitectura y Dependencias
 
-La siguiente estructura es la que mejor encaja con la documentacion actual y con el tipo de proyecto que se quiere construir:
+```mermaid
+flowchart TD
+    %% Nodos de Capas
+    subgraph CapasUI["Interfaz & Aplicación (Alto Nivel)"]
+        app["src/app (Bootstrap & Clock Runtime)"]
+        ui["src/ui (egui Viewport, Canvas & Tools)"]
+    end
+
+    subgraph CapasLogica["Contratos, Lógica & Utilidades"]
+        integration["src/integration (Snapshots, Deltas, Commands & Events)"]
+        persistence["src/persistence (JSON File Store)"]
+        generation["src/generation (Scenario Builder & Fixtures)"]
+        simulation["src/simulation (Engine, Dijkstra Routing & Metrics)"]
+    end
+
+    subgraph CapasDominio["Dominio Puro (Bajo Nivel)"]
+        model["src/model (Graph, Vehicle, Signal, Scenario & Invariants)"]
+    end
+
+    %% Relaciones de Dependencia (Dirección de las flechas: quién depende de quién)
+    app --> ui
+    app --> simulation
+    app --> persistence
+    app --> generation
+
+    ui --> integration
+    ui -.-> |Lectura de tipos| model
+
+    simulation --> model
+    simulation --> integration
+
+    generation --> model
+    generation --> integration
+
+    persistence --> model
+    persistence --> integration
+
+    integration --> model
+
+    %% Estilos de los Nodos
+    style model fill:#1e293b,stroke:#475569,stroke-width:2px,color:#f8fafc
+    style simulation fill:#1d4ed8,stroke:#3b82f6,stroke-width:2px,color:#f8fafc
+    style integration fill:#b45309,stroke:#f59e0b,stroke-width:2px,color:#f8fafc
+    style ui fill:#0369a1,stroke:#0ea5e9,stroke-width:2px,color:#f8fafc
+    style app fill:#047857,stroke:#10b981,stroke-width:2px,color:#f8fafc
+    style persistence fill:#6d28d9,stroke:#8b5cf6,stroke-width:2px,color:#f8fafc
+    style generation fill:#be123c,stroke:#f43f5e,stroke-width:2px,color:#f8fafc
+```
+
+## 3. Estructura de archivos del proyecto
+
+La distribución real de archivos y directorios es la siguiente:
 
 ```text
 .
@@ -62,16 +103,14 @@ La siguiente estructura es la que mejor encaja con la documentacion actual y con
 │  ├─ plan-visualizador.md
 │  └─ plan-integracion.md
 ├─ assets/
-│  ├─ icons/
-│  ├─ maps/
-│  └─ fixtures/
+│  └─ lucide.ttf
 ├─ src/
 │  ├─ main.rs
 │  ├─ lib.rs
 │  ├─ app/
 │  │  ├─ mod.rs
 │  │  ├─ bootstrap.rs
-│  │  ├─ composition.rs
+│  │  ├─ clock.rs
 │  │  └─ runtime.rs
 │  ├─ model/
 │  │  ├─ mod.rs
@@ -79,7 +118,6 @@ La siguiente estructura es la que mejor encaja con la documentacion actual y con
 │  │  ├─ scenario.rs
 │  │  ├─ graph.rs
 │  │  ├─ road.rs
-│  │  ├─ lane.rs
 │  │  ├─ vehicle.rs
 │  │  ├─ signal.rs
 │  │  ├─ state.rs
@@ -92,7 +130,6 @@ La siguiente estructura es la que mejor encaja con la documentacion actual y con
 │  │  ├─ movement.rs
 │  │  ├─ conflicts.rs
 │  │  ├─ metrics.rs
-│  │  ├─ events.rs
 │  │  └─ validation.rs
 │  ├─ generation/
 │  │  ├─ mod.rs
@@ -108,105 +145,90 @@ La siguiente estructura es la que mejor encaja con la documentacion actual y con
 │  │  ├─ delta.rs
 │  │  ├─ protocol.rs
 │  │  └─ codec.rs
-│  ├─ presentation/
+│  ├─ ui/
 │  │  ├─ mod.rs
-│  │  ├─ app_shell.rs
-│  │  ├─ view_model.rs
-│  │  ├─ canvas.rs
-│  │  ├─ panels/
-│  │  ├─ tools/
-│  │  └─ render/
+│  │  └─ screens/
+│  │     ├─ mod.rs
+│  │     └─ simulator/
+│  │        ├─ mod.rs
+│  │        ├─ bars/
+│  │        │  ├─ mod.rs
+│  │        │  ├─ menu_bar.rs
+│  │        │  └─ status_bar.rs
+│  │        ├─ canvas/
+│  │        │  ├─ mod.rs
+│  │        │  ├─ grid.rs
+│  │        │  ├─ render_cache.rs
+│  │        │  └─ viewport.rs
+│  │        ├─ components/
+│  │        │  ├─ mod.rs
+│  │        │  └─ sidebar.rs
+│  │        ├─ geom/
+│  │        │  ├─ mod.rs
+│  │        │  ├─ angles.rs
+│  │        │  ├─ collisions.rs
+│  │        │  ├─ distance.rs
+│  │        │  └─ triangulation.rs
+│  │        ├─ state/
+│  │        │  ├─ mod.rs
+│  │        │  └─ window_state.rs
+│  │        └─ tools/
+│  │           ├─ mod.rs
+│  │           ├─ building_tool.rs
+│  │           ├─ delete_tool.rs
+│  │           ├─ inspect_tool.rs
+│  │           └─ road_tool.rs
 │  └─ persistence/
 │     ├─ mod.rs
 │     ├─ file_store.rs
 │     ├─ serializer.rs
 │     └─ migrations.rs
 └─ tests/
-   ├─ unit/
-   ├─ integration/
-   ├─ property/
-   └─ fixtures/
+   └─ smoke.rs
 ```
 
-## 5. Responsabilidad de cada capa
+## 4. Responsabilidad de cada capa
 
 ### `src/main.rs`
-
-Solo arranca la aplicacion. No debe contener logica de negocio ni de UI. Su trabajo es llamar al bootstrap y terminar ahi.
+Solo arranca la aplicación. No contiene lógica de negocio ni de interfaz. Su trabajo es delegar al bootstrap en `src/lib.rs`.
 
 ### `src/lib.rs`
-
-Es la fachada publica del proyecto. Reexporta lo que el resto de la aplicacion necesita y mantiene ocultos los detalles internos.
+Fachada pública del proyecto. Reexporta el punto de arranque de la aplicación.
 
 ### `src/app`
-
-Es la raiz de composicion. Aqui se conectan motor, presentacion, persistencia y contratos. Tambien se decide si la aplicacion corre en modo editor, modo simulacion o modo analisis.
+Raíz de composición y runtime. Maneja la inicialización, la creación de la ventana principal y la sincronización del reloj lógico del simulador con los frames de renderizado.
 
 ### `src/model`
-
-Contiene datos puros y tipos estables. Aqui viven IDs, entidades, estados, relaciones de la red vial e invariantes. No debe haber I/O, renderizado ni logica de ejecucion.
+Contiene datos puros y tipos estables de dominio. Aquí viven IDs de entidades, el grafo vial, vehículos, semáforos y las validaciones de invariantes lógicas. No realiza operaciones de I/O ni renderizado.
 
 ### `src/simulation`
-
-Contiene la parte que muta el estado. Aqui viven el tick engine, el movimiento, el ruteo, las prioridades, la gestion de colas, las metricas y la emision de eventos.
+Motor lógico de simulación. Ejecuta las fases del tick, el cálculo de movimiento lógico de vehículos, el ruteo dinámico por Dijkstra, las penalizaciones por congestión, la resolución de colas/prioridades y la generación de métricas y eventos.
 
 ### `src/generation`
-
-Contiene la construccion y carga de escenarios. Sirve para generar casos de prueba, leer archivos externos, validar entrada y preparar datos para el motor.
+Módulo encargado de la creación procedural y configuración de escenarios (mediante patrones como Builder y Factory), facilitando la escritura de escenarios de prueba.
 
 ### `src/integration`
+Capa de contratos y mensajería que conecta el motor y la UI. Define la estructura de snapshots completos, snapshots delta de actualización, comandos y eventos. Asegura que el motor no se acople a la interfaz gráfica.
 
-Contiene los contratos compartidos entre capas: comandos, eventos, snapshots, deltas, versionado y codificacion. Es la capa que evita que UI y motor se acoplen por structs internos.
-
-### `src/presentation`
-
-Contiene la interfaz visual. Renderiza, inspecciona y permite editar, pero no calcula rutas ni resuelve colas. La UI recibe snapshots y envia comandos.
+### `src/ui`
+Interfaz gráfica interactiva en `egui`. Dibuja la rejilla, las carreteras trazadas y los edificios. Procesa los eventos de ratón/teclado y administra herramientas de dibujo geométricas específicas con snapping magnético y colisiones físicas.
 
 ### `src/persistence`
+Almacenamiento y serialización de escenarios en archivos JSON, aislando el formato de almacenamiento del modelo en memoria.
 
-Contiene almacenamiento, serializacion y migraciones de formato. Si mas adelante crece mucho, esta capa puede extraerse o subdividirse, pero al inicio conviene mantenerla cerca de los contratos.
+## 5. Patrones de diseño implementados
 
-## 6. Patrones de diseño recomendados
+- **Composition Root**: El arranque y la inyección de dependencias de la UI se configuran en `src/app` e `ui/mod.rs`.
+- **Command**: Las interacciones y peticiones de cambio en el escenario se estructuran mediante comandos estables en `src/integration/commands.rs`.
+- **Strategy**: El motor de rutas (`src/simulation/routing.rs`) e interpolación de desplazamientos se puede calibrar o intercambiar sin alterar el bucle principal.
+- **State**: La máquina de estados de vehículos (`VehicleState`), fases semafóricas (`SignalPhase`) y estados globales se definen formalmente en los contratos.
+- **Builder**: Facilita la creación simplificada y legible de redes viales y vehículos en tests (`ScenarioBuilder`).
+- **Facade**: `lib.rs` expone una interfaz pequeña y limpia para el arranque del programa.
 
-- **Composition Root**: toda la inyeccion de dependencias vive en `src/app`.
-- **Command**: las acciones del usuario y de la UI se modelan como comandos explicitos.
-- **Strategy**: rutas, prioridades, costos y politicas de control pueden intercambiarse sin tocar el motor completo.
-- **State**: vehiculos, semaforos, tramos y la simulacion general tienen estados bien definidos.
-- **Event-driven**: el motor emite eventos y snapshots; la presentacion reacciona a ellos.
-- **Builder**: la construccion de escenarios debe ser explicita y facil de testear.
-- **Facade**: `lib.rs` expone una interfaz pequena y clara para el resto del proyecto.
+## 6. Reglas de arquitectura
 
-## 7. Reglas para no confundirse
-
-- Un modulo, una responsabilidad.
-- Ninguna capa de presentacion debe mutar el modelo directamente.
-- Ningun tipo de `model` debe depender de la UI.
-- Toda mutacion del estado del trafico pasa por `simulation`.
-- Toda comunicacion entre UI y motor pasa por `integration`.
-- Todo arranque de la aplicacion pasa por `app`.
-- Los identificadores deben ser estables y explicitamente tipados.
-- Las colecciones internas del motor deben favorecer indices o handles estables, no punteros compartidos como base del diseño.
-- El motor debe seguir siendo determinista por defecto.
-
-## 8. Orden de implementacion recomendado
-
-1. Crear `model` con IDs, estados y entidades basicas.
-2. Implementar `simulation` con ticks, colas, movimiento y validacion.
-3. Definir `integration` con comandos, eventos y snapshots.
-4. Montar `app` como punto unico de composicion.
-5. Construir `presentation` como consumidora de snapshots y generadora de comandos.
-6. Agregar `generation` y `persistence` para escenarios, pruebas y guardado.
-7. Cubrir cada modulo con tests unitarios, de integracion y de propiedades.
-
-## 9. Por que esta estructura funciona para este proyecto
-
-- Reduce la confusion porque cada carpeta tiene una sola tarea.
-- Escala bien porque el motor no depende de la interfaz.
-- Permite trabajar en paralelo en backend, frontend e integracion.
-- Facilita las pruebas porque el modelo y la simulacion son aislables.
-- Mantiene la documentacion alineada con la implementacion real.
-- Da una base limpia para crecer sin reescribir todo cuando el simulador pase de una red pequena a escenarios complejos.
-
-## 10. Criterio final
-
-Si el codigo futuro respeta esta estructura, el proyecto quedara organizado de esta forma: el modelo define la verdad del dominio, la simulacion decide lo que pasa en cada tick, la integracion traduce entre capas y la presentacion solo muestra y controla. Esa separacion es la que mejor encaja con la vision actual del repositorio.
+- **No acoplamiento de UI**: Ningún tipo en `src/model` o `src/simulation` puede depender de `egui` o de librerías visuales.
+- **Determinismo**: La simulación lógica debe correr exclusivamente en el hilo del backend utilizando estructuras de datos deterministas (evitando iteración sobre `HashMap` no ordenados donde el orden altere el desempate de colas; se prefiere `BTreeMap`).
+- **Paso por snapshots**: La interfaz gráfica de usuario lee el estado del motor exclusivamente a través de los snapshots y deltas emitidos por `SimulationEngine`.
+- **Paso por comandos**: Toda mutación en el escenario provocada por el usuario (como trazar calles) debe enviarse como comandos al motor para su validación y aplicación.
+- **Geometría desacoplada**: El progreso de los vehículos se calcula en metros lógicos en el motor. La UI es responsable exclusiva de proyectar y escalar este progreso a coordenadas de pantalla (2D).

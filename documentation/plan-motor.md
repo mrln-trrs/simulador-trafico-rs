@@ -36,7 +36,7 @@ El motor debe ser capaz de:
 
 ## 3. Fases de desarrollo
 
-### Fase 0 - Contratos y modelo base
+### Fase 0 - Contratos y modelo base [COMPLETADA]
 
 Objetivo: fijar los cimientos conceptuales y técnicos del motor antes de mover un solo vehículo.
 
@@ -66,7 +66,7 @@ Criterio de cierre:
 - los escenarios inválidos fallan antes de ejecutar,
 - el motor puede inicializarse de forma repetible.
 
-### Fase 1 - Red vial y carga de escenarios
+### Fase 1 - Red vial y carga de escenarios [COMPLETADA]
 
 Objetivo: construir y validar la red lógica y su relación con los datos de entrada.
 
@@ -94,7 +94,7 @@ Criterio de cierre:
 - la red reconstruida coincide con la original,
 - la geometría y la lógica permanecen consistentes.
 
-### Fase 2 - Motor por ticks y movilidad base
+### Fase 2 - Motor por ticks y movilidad base [COMPLETADA]
 
 Objetivo: hacer que el sistema avance de forma correcta y determinista.
 
@@ -130,7 +130,7 @@ Criterio de cierre:
 - los cambios de estado intermedios se detectan dentro del avance,
 - el motor resuelve el paso temporal sin depender de la UI ni del renderizado.
 
-### Fase 3 - Congestión, rutas e incidencias
+### Fase 3 - Congestión, rutas e incidencias [COMPLETADA]
 
 Objetivo: introducir comportamiento dinámico realista en el motor.
 
@@ -160,7 +160,7 @@ Criterio de cierre:
 - no aparecen bucles de reruta sin control,
 - los incidentes alteran la simulación de forma medible.
 
-### Fase 4 - Métricas, trazabilidad y persistencia
+### Fase 4 - Métricas, trazabilidad y persistencia [COMPLETADA]
 
 Objetivo: hacer el motor explicable, exportable y reproducible.
 
@@ -189,7 +189,7 @@ Criterio de cierre:
 - las métricas permiten comparar escenarios,
 - los eventos permiten depurar decisiones internas.
 
-### Fase 5 - Validación, estrés y escala
+### Fase 5 - Validación, estrés y escala [COMPLETADA]
 
 Objetivo: demostrar que el motor sigue siendo correcto cuando crece la complejidad.
 
@@ -197,7 +197,7 @@ Alcance:
 
 - pruebas unitarias, de integración, de propiedad y de estrés,
 - escenarios de alta demanda,
-- redes grandes,
+- Arachne / redes grandes,
 - bloqueos simultáneos,
 - rutas con bucles potenciales,
 - validación de invariantes,
@@ -218,7 +218,7 @@ Criterio de cierre:
 - el comportamiento sigue siendo determinista,
 - la escalabilidad no obliga a reescribir el núcleo.
 
-### Fase 6 - Extensibilidad y endurecimiento
+### Fase 6 - Extensibilidad y endurecimiento [PLANIFICADA]
 
 Objetivo: dejar el motor listo para crecer sin perder orden ni reproducibilidad.
 

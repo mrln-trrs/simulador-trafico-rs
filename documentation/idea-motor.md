@@ -1210,3 +1210,12 @@ El motor debe permitir:
 
 Si este plan se cumple, el motor no será únicamente una implementación básica, sino una base seria para experimentación vial, análisis de congestión, diseño de escenarios y evolución hacia capacidades más avanzadas.
 
+## 27. Estado de la implementación del motor
+
+El motor de simulación de tráfico está completamente implementado bajo los principios y especificaciones descritas en este documento:
+- **Núcleo lógico determinista**: Desarrollado en [src/simulation/engine.rs](file:///c:/TRABAJOS%20-%202026/Optimizacion%20y%20Simulacion/LRPD/src/simulation/engine.rs). Avanza por ticks y emite snapshots/deltas estructurados en cada tick de forma determinista y monohilo.
+- **Ruteo dinámico por Dijkstra**: Ubicado en [src/simulation/routing.rs](file:///c:/TRABAJOS%20-%202026/Optimizacion%20y%20Simulacion/LRPD/src/simulation/routing.rs). Evalúa los costos de viaje en base a congestión física en tiempo real y permite replanificar rutas a vehículos atascados tras 3 ticks de espera.
+- **Validaciones e Invariantes**: Implementadas en [src/model/invariants.rs](file:///c:/TRABAJOS%20-%202026/Optimizacion%20y%20Simulacion/LRPD/src/model/invariants.rs) y [src/simulation/validation.rs](file:///c:/TRABAJOS%20-%202026/Optimizacion%20y%20Simulacion/LRPD/src/simulation/validation.rs), asegurando la validez del escenario antes de la corrida.
+- **Pruebas y Verificación**: Validadas a través de suites de pruebas automáticas en [tests/smoke.rs](file:///c:/TRABAJOS%20-%202026/Optimizacion%20y%20Simulacion/LRPD/tests/smoke.rs), comprobando viajes exitosos, congestión de vehículos y roundtrip de serialización en archivos.
+
+

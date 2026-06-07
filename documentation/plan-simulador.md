@@ -40,47 +40,45 @@ La comunicación entre capas se desarrolla siguiendo `plan-integracion`. Ese pla
 
 ## 4. Fases del proyecto
 
-### Fase 0: definición y límites
+### Fase 0: definición y límites [COMPLETADA]
 
 - cerrar el alcance de cada capa,
 - fijar los tipos compartidos mínimos,
 - definir qué datos son de dominio y cuáles son de presentación,
 - establecer reglas de determinismo y versionado.
 
-### Fase 1: motor base
+### Fase 1: motor base [COMPLETADA]
 
-- construir la base lógica del simulador,
-- validar cargas simples,
-- asegurar que el backend puede ejecutarse y producir estado consistente,
-- dejar preparada la API de consumo para otras capas.
+- construir la base lógica del simulador (nodos, tramos, carriles),
+- validar cargas simples y rutas dinámicas por Dijkstra,
+- asegurar que el backend puede ejecutarse y producir estado consistente tick a tick,
+- dejar preparada la API de consumo para otras capas (`SimulationEngine` y snapshots).
 
-### Fase 2: interfaz visual básica
+### Fase 2: interfaz visual básica [PARCIALMENTE COMPLETADA]
 
-- crear el entorno visual inicial,
-- permitir cargar y representar escenarios,
-- habilitar inspección y edición mínima,
-- verificar que la UI consume correctamente el estado del motor.
+- crear el entorno visual inicial con `eframe` / `egui` (lienzo y rejilla infinita),
+- permitir la edición geométrica de carreteras e interactuar con obstáculos/edificios,
+- habilitar inspección y borrado de elementos en la UI,
+- [PENDIENTE] verificar que la UI consume correctamente el estado del motor (sincronizar runtime y vehículos en movimiento).
 
-### Fase 3: contratos e integración completa
+### Fase 3: contratos e integración completa [COMPLETADA A NIVEL LÓGICO]
 
-- estabilizar snapshots completos, delta y comandos,
-- sincronizar edición y ejecución,
-- definir el flujo de persistencia compartida,
-- resolver compatibilidad entre frontend y backend.
+- estabilizar snapshots completos, delta y comandos (implementado en `src/integration`),
+- definir el flujo de persistencia compartida en JSON (implementado en `src/persistence`),
+- [PENDIENTE] sincronizar edición visual y ejecución interactiva del motor en tiempo real.
 
-### Fase 4: funciones avanzadas
+### Fase 4: funciones avanzadas [PARCIALMENTE COMPLETADA]
 
-- añadir congestión, replanificación, eventos y métricas donde corresponda,
-- mejorar la edición y la depuración visual,
-- cerrar huecos de usabilidad y trazabilidad,
-- reforzar validación y pruebas.
+- añadir congestión, replanificación, eventos y métricas (implementado y probado en el motor de simulación),
+- mejorar la edición y la depuración visual (detección de colisiones implementada),
+- cerrar huecos de usabilidad e interactividad (pendiente de integrar controles de simulación en GUI).
 
-### Fase 5: endurecimiento y escala
+### Fase 5: endurecimiento y escala [PARCIALMENTE COMPLETADA]
 
-- revisar rendimiento,
-- confirmar reproducibilidad,
-- probar escenarios más grandes,
+- confirmar reproducibilidad determinista monohilo (verificado en tests de integración),
+- probar escenarios y tramos más grandes (escenario demo validado),
 - preparar el proyecto para crecimiento sin reescrituras.
+
 
 ## 5. Criterios de éxito
 

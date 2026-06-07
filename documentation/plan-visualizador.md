@@ -30,49 +30,48 @@ El visualizador debe permitir:
 
 ## 4. Fases de implementación
 
-### Fase 0: base de interfaz
+### Fase 0: base de interfaz [COMPLETADA]
 
-- definir arquitectura de pantallas y paneles,
-- establecer el flujo de datos con el backend,
-- preparar el lienzo y el sistema de selección,
-- dejar claros los estados de modo edición y modo ejecución.
+- definir arquitectura de pantallas y paneles (barra de menú, barra de estado y barra de herramientas lateral implementadas),
+- establecer el flujo de datos y modelo de la interfaz (`SimuladorApp`),
+- preparar el lienzo y el sistema de selección interactivo por clic,
+- dejar definidos los estados de edición y modo de borrado selectivo.
 
-### Fase 1: lienzo y representación
+### Fase 1: lienzo y representación [COMPLETADA]
 
-- renderizar la red vial básica,
-- dibujar nodos, tramos y carriles,
-- mapear el progreso normalizado a coordenadas visuales con interpolación,
-- soportar zoom, desplazamiento y selección,
-- mantener una jerarquía visual limpia.
+- renderizar la red vial básica en asfalto con mezcla de tramos,
+- dibujar marcas de carriles segmentadas con recortes en intersecciones,
+- soportar zoom y desplazamiento fluidos en el viewport,
+- implementar un sistema de coordenadas estable e independiente de la resolución de pantalla.
 
-### Fase 2: edición geométrica
+### Fase 2: edición geométrica [COMPLETADA]
 
-- crear herramientas de trazado y ajuste,
-- permitir mover, rotar y redimensionar elementos,
-- activar snapping a rejilla, ángulos y ortogonalidad cuando corresponda,
-- mostrar guías, referencias y validaciones visuales,
-- facilitar deshacer y rehacer.
+- crear herramientas de trazado interactivo y elástico (`RoadTool` y `BuildingTool`),
+- permitir trazar carreteras magnéticas con snapping configurable por zoom y número de carriles variables,
+- implementar el trazado de obstáculos/edificios poligonales con triangulación por orejas (ear clipping) para polígonos complejos,
+- evitar la colisión física entre calles y edificios en tiempo de diseño,
+- habilitar herramientas de borrado avanzado (`DeleteTool`) con modos de sub-polígono, lazo a mano alzada y elemento completo.
 
-### Fase 3: observación de simulación
+### Fase 3: observación de simulación [PLANIFICADA - SIGUIENTE PASO]
 
-- mostrar vehículos en movimiento,
-- representar colas, estados semafóricos y rutas,
-- añadir paneles de inspección,
-- permitir seguimiento de entidades durante la ejecución.
+- conectar `SimulationEngine` interactivo dentro de la interfaz gráfica,
+- mostrar vehículos en movimiento sobre las carreteras lógicas e interpolar su progreso visual,
+- representar visualmente los estados de los semáforos (verde/amarillo/rojo) en las intersecciones,
+- añadir paneles de control para reproducir, pausar, resetear e ir paso a paso,
+- permitir inspeccionar un vehículo o nodo semafórico obteniendo sus detalles acumulados en tiempo real.
 
-### Fase 4: análisis y depuración
+### Fase 4: análisis y depuración [PLANIFICADA]
 
-- incorporar capas de congestión y métricas visuales,
-- habilitar filtros y resaltados,
-- mejorar la lectura de escenarios complejos,
-- preparar herramientas de diagnóstico.
+- incorporar capas de color térmicas según la congestión de los tramos devuelta por el motor,
+- habilitar filtros y resaltados de rutas seguidas por vehículos específicos,
+- depurar visualmente los vectores de colisión e identificadores lógicos mediante un panel de control técnico.
 
-### Fase 5: pulido y escala
+### Fase 5: pulido y escala [PLANIFICADA]
 
-- revisar rendimiento visual,
-- ajustar ergonomía y consistencia,
-- validar escenarios grandes,
-- confirmar compatibilidad con el contrato de integración.
+- revisar el rendimiento visual de renderizado continuo en egui con alta densidad de vehículos,
+- pulir atajos de teclado y consistencia de menús contextuales,
+- confirmar la compatibilidad y estabilidad del contrato de persistencia JSON.
+
 
 ## 5. Criterios de éxito
 

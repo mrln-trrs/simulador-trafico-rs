@@ -397,4 +397,15 @@ El visualizador estará bien definido cuando pueda:
 - visualizar congestión y eventos de forma inmediata,
 - trabajar como frontend puro sin contener lógica de tráfico.
 
+## 14. Estado de la implementación de la UI
+
+La interfaz gráfica del simulador se encuentra actualmente estructurada bajo [src/ui](file:///c:/TRABAJOS%20-%202026/Optimizacion%20y%20Simulacion/LRPD/src/ui), construida en base a `egui` y `eframe`:
+- **Lienzo e Infinito Grid**: Implementados en [src/ui/screens/simulator/canvas](file:///c:/TRABAJOS%20-%202026/Optimizacion%20y%20Simulacion/LRPD/src/ui/screens/simulator/canvas), permitiendo navegación (zoom y pan) y cacheo de líneas de rejilla.
+- **Herramienta de Carreteras (`RoadTool`)**: Desarrollada en [src/ui/screens/simulator/tools/road_tool.rs](file:///c:/TRABAJOS%20-%202026/Optimizacion%20y%20Simulacion/LRPD/src/ui/screens/simulator/tools/road_tool.rs). Permite trazar vías rectas, configurar el número de carriles de forma dinámica y realizar un snapping magnético preciso al lienzo.
+- **Herramienta de Edificios (`BuildingTool`)**: Desarrollada en [src/ui/screens/simulator/tools/building_tool.rs](file:///c:/TRABAJOS%20-%202026/Optimizacion%20y%20Simulacion/LRPD/src/ui/screens/simulator/tools/building_tool.rs). Permite dibujar polígonos cerrados de obstáculos e implementa triangulación de orejas para renderizar polígonos complejos sin problemas.
+- **Detección de Colisiones**: Integrada geométricamente en [src/ui/screens/simulator/geom/collisions.rs](file:///c:/TRABAJOS%20-%202026/Optimizacion%20y%20Simulacion/LRPD/src/ui/screens/simulator/geom/collisions.rs), impidiendo que se tracen carreteras sobre edificios.
+- **Herramientas de Borrado (`DeleteTool`)**: Soporta eliminación selectiva por sub-polígono, lazo interactivo de selección o borrado del elemento completo.
+
+*Nota de progreso*: Los modos de ejecución de la simulación (Play, Pausa, Reset, avance tick por tick) están diseñados pero aún no se han acoplado a la estructura interactiva de `SimuladorApp` para procesar y renderizar los snapshots en tiempo real.
+
 En resumen, este documento cubre solo la experiencia visual e interactiva del simulador. Si una decisión afecta al dibujo, la interacción o la presentación, pertenece aquí. Si afecta al comportamiento del tráfico, pertenece al backend.

@@ -30,41 +30,36 @@ La integración debe cubrir:
 
 ## 4. Fases de implementación
 
-### Fase 0: modelo compartido
+### Fase 0: modelo compartido [COMPLETADA]
 
-- fijar tipos base comunes,
-- definir identificadores estables,
-- separar dominio, vista y transporte,
-- decidir qué se comparte y qué no.
+- fijar tipos base comunes (en `src/model`),
+- definir identificadores estables (`VehicleId`, `NodeId`, `SegmentId`, `SignalId`),
+- separar dominio, vista y transporte (estructura limpia e independiente).
 
-### Fase 1: snapshots y estado
+### Fase 1: snapshots y estado [COMPLETADA]
 
-- definir la estructura de instantáneas completas y delta,
-- acordar qué entidades y campos cambian por tick,
-- permitir actualizaciones parciales de posiciones, colas y estados,
-- asegurar lecturas consistentes por tick.
+- definir la estructura de instantáneas completas y delta (implementado en [src/integration/snapshots.rs](file:///c:/TRABAJOS%20-%202026/Optimizacion%20y%20Simulacion/LRPD/src/integration/snapshots.rs) y [src/integration/delta.rs](file:///c:/TRABAJOS%20-%202026/Optimizacion%20y%20Simulacion/LRPD/src/integration/delta.rs)),
+- acordar qué entidades y campos cambian por tick (progreso de vehículos, fases de semáforos, cola),
+- permitir actualizaciones parciales y asegurar lecturas consistentes por tick.
 
-### Fase 2: comandos y eventos
+### Fase 2: comandos y eventos [PARCIALMENTE COMPLETADA]
 
-- definir comandos de edición,
-- definir eventos emitidos por el motor,
-- establecer respuesta a cambios de escenario,
-- hacer explícito el flujo de ida y vuelta.
+- definir comandos de edición (`src/integration/commands.rs`),
+- definir eventos emitidos por el motor (`src/integration/events.rs` - implementado),
+- [PENDIENTE] establecer el envío de comandos desde el visualizador interactivo y la reacción a los eventos del motor.
 
-### Fase 3: persistencia y serialización
+### Fase 3: persistencia y serialización [COMPLETADA]
 
-- escoger formatos de guardado y exportación,
-- usar formatos legibles para depuración y compactos o binarios para corridas masivas,
-- garantizar reconstrucción determinista,
-- versionar el esquema de datos,
-- preparar migraciones si cambia el modelo.
+- escoger formatos de guardado y exportación (JSON legible implementado),
+- garantizar reconstrucción determinista (tests unitarios y de integración de carga de escenarios aprobados),
+- versionar el esquema de datos (`CONTRACT_VERSION = 1`).
 
-### Fase 4: compatibilidad y pruebas
+### Fase 4: compatibilidad y pruebas [PARCIALMENTE COMPLETADA]
 
 - comprobar que frontend y backend interpretan lo mismo,
-- validar casos límite de sincronización,
-- probar carga, guardado y reproducción,
-- revisar compatibilidad entre versiones.
+- validar casos límite de sincronización (test de viaje completo en `tests/smoke.rs`),
+- [PENDIENTE] probar la carga, guardado y reproducción interactiva extremo a extremo desde el visualizador.
+
 
 ## 5. Criterios de éxito
 

@@ -1,52 +1,59 @@
 # Simulador de Tráfico
 
 Proyecto en Rust para construir un simulador de tráfico urbano.
-En este momento el foco está en la base visual y en la organización de la interfaz: ya hay una ventana de escritorio, un plano cuadriculado simple y una UI básica para explorar el espacio.
 
 ## Estado actual
 
-- Ventana nativa creada con `eframe` / `egui`.
-- Plano base con grilla infinita y navegación por zoom y desplazamiento.
-- Barra superior con acciones básicas de vista.
-- Barra inferior con información del viewport y del plano.
-- Persistencia simple del estado de la ventana.
-- Estructura de módulos separada para que la UI pueda crecer sin mezclar responsabilidades.
+El proyecto cuenta con un motor de simulación funcional y una interfaz gráfica interactiva, desarrollados de forma desacoplada:
 
-Todavía no hay simulación de tráfico real. No existen aún calles, carriles, intersecciones, vehículos, semáforos, rutas ni colisiones.
-
-## Qué ya está listo
-
-- Base de aplicación de escritorio funcionando.
-- Plano visual estable para empezar a construir la red vial.
-- Organización interna de la UI en módulos pequeños.
-- Soporte para seguir iterando sobre la ventana sin rehacer la estructura.
-
-## Próximo progreso
-
-1. Crear el modelo de red vial: nodos, tramos, carriles e intersecciones.
-2. Definir reglas básicas de circulación y movimiento.
-3. Añadir vehículos y su lógica de desplazamiento.
-4. Introducir semáforos, prioridades y conflictos.
-5. Conectar métricas, depuración y persistencia de escenarios.
+- **Backend / Motor de simulación (`src/simulation`, `src/model`):**
+  - Representación de la red vial mediante un grafo dirigido (nodos, tramos y carriles).
+  - Simulación discreta por ticks determinista y reproducible con semillas.
+  - Generación de vehículos con planificación de rutas dinámicas (Dijkstra) y evasión de congestión.
+  - Semáforos lógicos estructurados por fases temporales.
+  - Registro automático de eventos e historial por tick.
+  - Recopilación de métricas de rendimiento del tráfico (vehículos completados, tiempo de viaje, tiempos de espera).
+- **Persistencia (`src/persistence`):**
+  - Serialización y deserialización de escenarios completos a formato JSON.
+- **Frontend / Interfaz Gráfica (`src/ui`, `src/app`):**
+  - Ventana nativa de escritorio creada con `eframe` / `egui`.
+  - Lienzo 2D con rejilla infinita, desplazamiento fluido y zoom.
+  - Herramienta de trazado magnético (snapping) de carreteras con ancho y número de carriles configurable.
+  - Herramienta de dibujo poligonal para edificios y obstáculos con soporte para polígonos complejos (triangulación por orejas).
+  - Detección de colisiones geométricas entre carreteras y edificios.
+  - Herramienta de borrado selectivo (sub-polígonos, lasso de selección o elementos completos) e inspector base de objetos.
 
 ## Estructura del proyecto
 
+El proyecto está diseñado bajo un monolito modular con separación estricta de responsabilidades:
+
 ```text
 src/
-├── app/
-├── generation/
-├── integration/
-├── model/
-├── persistence/
-├── simulation/
-└── ui/
+├── app/          # Inicialización (bootstrap), runtime de egui y reloj lógico
+├── generation/   # Generación procedural de escenarios (Builders, Fixtures)
+├── integration/  # Contratos compartidos, snapshots, deltas de estado y eventos
+├── model/        # Datos puros de dominio (grafo, vehículos, semáforos) sin I/O ni UI
+├── persistence/  # Serialización y guardado de escenarios en archivos JSON
+├── simulation/   # Motor de simulación determinista (routing, tick engine, métricas)
+└── ui/           # Interfaz gráfica de usuario en egui
     └── screens/
         └── simulator/
-            ├── bars/
-            ├── canvas/
-            ├── components/
-            └── state/
+            ├── bars/        # Barra superior de menú y barra inferior de estado
+            ├── canvas/      # Rejilla infinita y manejo de viewport
+            ├── components/  # Paneles laterales y menús de herramientas
+            ├── geom/        # Lógica geométrica (triangulación, colisiones de carriles)
+            ├── state/       # Persistencia de la ventana y estados de GUI
+            └── tools/       # Herramientas de dibujo interactivo (Road, Building, Inspect, Delete)
 ```
+
+## Próximo progreso
+
+El siguiente hito del proyecto es la **integración interactiva del motor en la interfaz gráfica**:
+1. Conectar `SimulationEngine` dentro del estado del visualizador (`SimuladorApp`).
+2. Implementar los controles de reproducción visuales (Play, Pausa, Reset, Avance por tick) en la barra de menú o lateral.
+3. Renderizar dinámicamente los vehículos e interpolar sus movimientos basándose en los snapshots y deltas emitidos por el motor.
+4. Mostrar visualmente los estados de los semáforos lógicos sobre el lienzo.
+5. Permitir la inspección en tiempo real de vehículos y semáforos, mostrando sus estadísticas de viaje y tiempos de espera.
 
 ## Tecnologías
 
@@ -59,25 +66,21 @@ src/
 
 ## Desarrollo
 
+Para ejecutar el simulador gráfico interactivo:
 ```bash
 cargo run
 ```
 
+Para correr las pruebas unitarias y de integración del motor de simulación:
 ```bash
 cargo test
 ```
 
+Para dar formato y validar la calidad del código:
 ```bash
 cargo fmt
-```
-
-```bash
 cargo clippy
 ```
-
-## Objetivo
-
-La meta es pasar de esta base visual a un simulador de tráfico completo y mantenible, empezando por la red vial y el motor de simulación, y luego sumando edición, métricas y persistencia de escenarios.
 
 ## Licencia
 

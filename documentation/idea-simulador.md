@@ -216,4 +216,11 @@ La idea general quedará bien definida cuando el proyecto pueda:
 - crecer en complejidad sin perder orden conceptual,
 - mantener backend y frontend separados, pero coordinados.
 
+## 8. Estado de la implementación
+
+Actualmente, el proyecto ha completado de forma sólida la primera iteración de desarrollo:
+- **Backend (Motor de Simulación)**: Totalmente implementado a nivel conceptual de tráfico por ticks. Se han integrado vehículos, semáforos, Dijkstra dinámico, y el cálculo de colas de congestión.
+- **Frontend (Editor Visual)**: Lienzo interactivo en egui implementado, permitiendo trazar carreteras magnéticas y obstáculos poligonales de forma manual.
+- **Próximo Objetivo**: Acoplar ambas partes en tiempo de ejecución. La UI deberá inicializar el motor con la red trazada por el usuario y renderizar los snapshots en tiempo real.
+
 En resumen, este documento engloba la intención total del proyecto: una plataforma de simulación de tráfico en Rust, con motor lógico en backend y visualización interactiva en frontend, ambos unidos por modelos y contratos compartidos.
