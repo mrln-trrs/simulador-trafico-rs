@@ -23,6 +23,13 @@ pub enum Tool {
     Building,
     Inspect,
     Delete,
+    Edit,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum EditTarget {
+    Building(usize, Option<usize>),
+    Road(usize, Option<bool>),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -75,6 +82,9 @@ pub struct SimuladorApp {
 
     // Estado de inspección
     pub(crate) selected_inspect_object: Option<InspectedObject>,
+
+    // Estado de edición/arrastre
+    pub(crate) selected_edit_target: Option<EditTarget>,
 
     // Estado de escala global de la interfaz y texto
     pub(crate) ui_zoom: f32,
@@ -196,6 +206,12 @@ impl SimuladorApp {
                 label: "Borrar".to_string(),
                 tooltip: "Eliminar construcciones".to_string(),
             },
+            SidebarItem {
+                value: Tool::Edit,
+                icon: "\u{e115}".to_string(), // icon-pencil / edit (in Lucide/Material Icons, e115 or similar edit/pencil unicode)
+                label: "Editar".to_string(),
+                tooltip: "Editar vértices de objetos".to_string(),
+            },
         ];
 
         Sidebar::new("left_sidebar", SidebarPosition::Left, &sidebar_items)
@@ -215,7 +231,14 @@ impl SimuladorApp {
 
             let (zoom_delta, hover_pos) = ui.input(|input| (input.zoom_delta(), input.pointer.hover_pos()));
 
-            if response.dragged() {
+            // Arrastrar el lienzo: Si hay una herramienta seleccionada, solo permitimos arrastrar con el botón del scroll (Middle Button)
+            let is_panning = if self.selected_tool.is_some() {
+                response.dragged_by(egui::PointerButton::Middle)
+            } else {
+                response.dragged_by(egui::PointerButton::Primary) || response.dragged_by(egui::PointerButton::Middle)
+            };
+
+            if is_panning {
                 self.viewport.pan += response.drag_delta() / self.viewport.zoom;
                 viewport_changed = true;
             }
@@ -381,6 +404,7 @@ impl SimuladorApp {
             tools::handle_road_tool(self, ctx, rect, &response, &painter, pointer_world, step);
             tools::handle_delete_tool(self, ctx, rect, &response, &painter, pointer_world, step);
             tools::handle_inspect_tool(self, ctx, rect, &response, &painter);
+            tools::handle_edit_tool(self, ctx, rect, &response, &painter, pointer_world);
         });
 
         TopBottomPanel::bottom("status_bar")
