@@ -50,6 +50,7 @@ pub fn handle_inspect_tool(
 
     // Renderizar la información del elemento inspeccionado en sus lados y vértices
     if let Some(inspect_obj) = &app.selected_inspect_object {
+        let scale = app.ui_zoom * app.text_scale;
         match inspect_obj {
             &InspectedObject::Building(idx) => {
                 if idx < app.obstacles.len() {
@@ -61,6 +62,7 @@ pub fn handle_inspect_tool(
                         obstacle,
                         &format!("Edificio #{}", idx),
                         Color32::from_rgb(59, 130, 246),
+                        scale,
                     );
                 }
             }
@@ -88,6 +90,7 @@ pub fn handle_inspect_tool(
                         &road_poly,
                         &format!("Pista #{}\nCarriles: {}", road.id, road.lanes),
                         Color32::from_rgb(59, 130, 246),
+                        scale,
                     );
                 }
             }
@@ -115,6 +118,7 @@ fn draw_polygon_inspection_info(
     points: &[egui::Vec2],
     title: &str,
     border_color: Color32,
+    scale: f32,
 ) {
     let n = points.len();
     if n < 3 { return; }
@@ -123,8 +127,17 @@ fn draw_polygon_inspection_info(
     let points_screen: Vec<egui::Pos2> = points.iter().map(|&pt| viewport.world_to_screen(rect, pt)).collect();
     painter.add(egui::Shape::closed_line(
         points_screen.clone(),
-        egui::Stroke::new(3.0, border_color),
+        egui::Stroke::new(3.0 * scale, border_color),
     ));
+
+    // Calcular si los puntos están ordenados en sentido horario (CW) o antihorario (CCW)
+    let mut signed_area = 0.0;
+    for i in 0..n {
+        let v1 = points[i];
+        let v2 = points[(i + 1) % n];
+        signed_area += v1.x * v2.y - v2.x * v1.y;
+    }
+    let is_ccw = signed_area > 0.0;
 
     // Calcular ángulos internos en grados
     let angles = compute_interior_angles(points);
@@ -146,31 +159,45 @@ fn draw_polygon_inspection_info(
         let len = (v2 - v1).length();
 
         let mid_screen = viewport.world_to_screen(rect, mid);
+        let v1_screen = viewport.world_to_screen(rect, v1).to_vec2();
+        let v2_screen = viewport.world_to_screen(rect, v2).to_vec2();
+
+        let edge_dir = (v2_screen - v1_screen).normalized();
+        let normal_right = egui::vec2(edge_dir.y, -edge_dir.x);
+        let ext_normal = if is_ccw { normal_right } else { -normal_right };
+
         let side_name = get_vertex_label(i).to_lowercase();
         let text = format!("{}: {:.1}m", side_name, len);
 
+        let font_size = 9.5 * scale;
         let text_size = painter.layout_no_wrap(
             text.clone(),
-            egui::FontId::proportional(9.5),
+            egui::FontId::proportional(font_size),
             Color32::from_rgb(147, 197, 253),
         ).rect.size();
 
+        // Reposicionamiento y Escalado de Lados (No superposición)
+        let box_half_width = (text_size.x + 8.0 * scale) * 0.5;
+        let box_half_height = (text_size.y + 6.0 * scale) * 0.5;
+        let offset_dist = (ext_normal.x.abs() * box_half_width + ext_normal.y.abs() * box_half_height) + 4.0 * scale;
+        let label_center = mid_screen + ext_normal * offset_dist;
+
         // Fondo con opacidad 1.0 (Negro sólido)
         painter.rect_filled(
-            Rect::from_center_size(mid_screen, text_size + egui::vec2(8.0, 6.0)),
-            3.0,
+            Rect::from_center_size(label_center, text_size + egui::vec2(8.0, 6.0) * scale),
+            3.0 * scale,
             Color32::from_black_alpha(255),
         );
         painter.text(
-            mid_screen,
+            label_center,
             egui::Align2::CENTER_CENTER,
             text,
-            egui::FontId::proportional(9.5),
+            egui::FontId::proportional(font_size),
             Color32::from_rgb(147, 197, 253),
         );
     }
 
-    // Dibujar etiquetas de los vértices (Nombre, coordenadas, ángulo) y arcos
+    // Dibujar etiquetas de los vértices (Nombre, coordenadas en el exterior, ángulo en el interior) y arcos
     for i in 0..n {
         let pt = points[i];
         let angle = angles[i];
@@ -184,13 +211,15 @@ fn draw_polygon_inspection_info(
         let centroid_screen = viewport.world_to_screen(rect, centroid);
 
         // Calcular vectores dirección
-        let _dir_prev = (prev_screen - pt_screen).normalized();
         let dir_next = (next_screen - pt_screen).normalized();
 
         // Determinar radio del arco de manera proporcional al tamaño de los lados en pantalla
         let len_prev_screen = (prev_screen - pt_screen).length();
         let len_next_screen = (next_screen - pt_screen).length();
-        let arc_radius = 20.0f32.min(len_prev_screen * 0.4).min(len_next_screen * 0.4).max(5.0);
+        
+        let base_max_radius = 20.0 * scale;
+        let base_min_radius = 5.0 * scale;
+        let arc_radius = base_max_radius.min(len_prev_screen * 0.4).min(len_next_screen * 0.4).max(base_min_radius);
 
         // Determinar la dirección de barrido correcta (hacia el interior del polígono)
         let rad = angle.to_radians();
@@ -221,39 +250,64 @@ fn draw_polygon_inspection_info(
         // Dibujar el arco del ángulo
         painter.add(egui::Shape::line(
             arc_points,
-            egui::Stroke::new(1.5, Color32::from_rgb(253, 186, 116)),
+            egui::Stroke::new(1.5 * scale, Color32::from_rgb(253, 186, 116)),
         ));
 
-        // Calcular posición desplazada para la etiqueta (fuera del arco)
-        let delta = centroid_screen - pt_screen;
-        let dist = delta.length();
-        let label_offset = arc_radius + 16.0;
-        let pt_shifted_screen = if dist > 0.001 {
-            pt_screen + (delta / dist) * label_offset
-        } else {
-            pt_screen
-        };
+        // Obtener el vector dirección hacia el interior y exterior
+        let bisector_angle = angle_next + sweep * 0.5;
+        let dir_interior = egui::vec2(bisector_angle.cos(), bisector_angle.sin());
+        let dir_exterior = -dir_interior;
 
-        let vertex_name = get_vertex_label(i);
-        let text = format!("{}: ({:.1}, {:.1})\n{:.0}°", vertex_name, pt.x, pt.y, angle);
-
-        let text_size = painter.layout_no_wrap(
-            text.clone(),
-            egui::FontId::proportional(9.0),
+        // Dibujo de Ángulo y Arco (Interior)
+        let text_angle = format!("{:.0}°", angle);
+        let font_size_angle = 9.0 * scale;
+        let text_size_angle = painter.layout_no_wrap(
+            text_angle.clone(),
+            egui::FontId::proportional(font_size_angle),
             Color32::from_rgb(253, 186, 116),
         ).rect.size();
 
-        // Fondo con opacidad 1.0 (Negro sólido)
+        let angle_label_center = pt_screen + dir_interior * (arc_radius + (text_size_angle.y * 0.5) + 4.0 * scale);
+        
         painter.rect_filled(
-            Rect::from_center_size(pt_shifted_screen, text_size + egui::vec2(8.0, 6.0)),
-            3.0,
+            Rect::from_center_size(angle_label_center, text_size_angle + egui::vec2(6.0, 4.0) * scale),
+            2.0 * scale,
             Color32::from_black_alpha(255),
         );
         painter.text(
-            pt_shifted_screen,
+            angle_label_center,
             egui::Align2::CENTER_CENTER,
-            text,
-            egui::FontId::proportional(9.0),
+            text_angle,
+            egui::FontId::proportional(font_size_angle),
+            Color32::from_rgb(253, 186, 116),
+        );
+
+        // Dibujo de Vértice y Coordenadas (Exterior)
+        let vertex_name = get_vertex_label(i);
+        let text_vertex = format!("{}: ({:.1}, {:.1})", vertex_name, pt.x, pt.y);
+        let font_size_vertex = 9.0 * scale;
+        
+        let text_size_vertex = painter.layout_no_wrap(
+            text_vertex.clone(),
+            egui::FontId::proportional(font_size_vertex),
+            Color32::from_rgb(253, 186, 116),
+        ).rect.size();
+
+        let v_box_half_width = (text_size_vertex.x + 8.0 * scale) * 0.5;
+        let v_box_half_height = (text_size_vertex.y + 6.0 * scale) * 0.5;
+        let v_offset_dist = (dir_exterior.x.abs() * v_box_half_width + dir_exterior.y.abs() * v_box_half_height) + 6.0 * scale;
+        let vertex_label_center = pt_screen + dir_exterior * v_offset_dist;
+
+        painter.rect_filled(
+            Rect::from_center_size(vertex_label_center, text_size_vertex + egui::vec2(8.0, 6.0) * scale),
+            3.0 * scale,
+            Color32::from_black_alpha(255),
+        );
+        painter.text(
+            vertex_label_center,
+            egui::Align2::CENTER_CENTER,
+            text_vertex,
+            egui::FontId::proportional(font_size_vertex),
             Color32::from_rgb(253, 186, 116),
         );
     }
@@ -275,21 +329,21 @@ fn draw_polygon_inspection_info(
 
     let text_size = painter.layout_no_wrap(
         info_text.clone(),
-        egui::FontId::proportional(12.0),
+        egui::FontId::proportional(12.0 * scale),
         Color32::WHITE,
     ).rect.size();
 
     // Fondo con opacidad 1.0 (Negro sólido)
     painter.rect_filled(
-        Rect::from_center_size(centroid_screen, text_size + egui::vec2(16.0, 16.0)),
-        4.0,
+        Rect::from_center_size(centroid_screen, text_size + egui::vec2(16.0, 16.0) * scale),
+        4.0 * scale,
         Color32::from_black_alpha(255),
     );
     painter.text(
         centroid_screen,
         egui::Align2::CENTER_CENTER,
         info_text,
-        egui::FontId::proportional(12.0),
+        egui::FontId::proportional(12.0 * scale),
         Color32::WHITE,
     );
 }

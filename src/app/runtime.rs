@@ -143,6 +143,52 @@ impl TrackedWindow for SettingsWindow {
 }
 
 // 6. Lanzamiento del motor multi-ventana
+fn load_icon() -> Option<egui_multiwin::winit::window::Icon> {
+    let width = 32;
+    let height = 32;
+    let mut rgba = vec![0u8; (width * height * 4) as usize];
+    for y in 0..height {
+        for x in 0..width {
+            let idx = ((y * width + x) * 4) as usize;
+            // Color de fondo: azul plano/blueprint (azul profundo)
+            let mut r = 15;
+            let mut g = 76;
+            let mut b = 129;
+            let mut a = 255;
+
+            // Dibujar bordes e intersección de calles para que parezca "un plano" de carreteras
+            if x == 0 || x == width - 1 || y == 0 || y == height - 1 {
+                r = 255; g = 255; b = 255; a = 255;
+            }
+            // Calle horizontal: y en 13..18
+            else if y >= 13 && y <= 18 {
+                r = 255; g = 255; b = 255; a = 255; // Vía blanca
+            }
+            // Calle vertical: x en 13..18
+            else if x >= 13 && x <= 18 {
+                r = 255; g = 255; b = 255; a = 255; // Vía blanca
+            }
+            // Líneas discontinuas del centro de las carreteras (amarillas)
+            else if y == 15 && (x % 4 < 2) {
+                r = 234; g = 179; b = 8;
+            }
+            else if x == 15 && (y % 4 < 2) {
+                r = 234; g = 179; b = 8;
+            }
+            // Cuadrícula fina de plano (azul claro)
+            else if x % 6 == 0 || y % 6 == 0 {
+                r = 40; g = 120; b = 200; a = 255;
+            }
+
+            rgba[idx] = r;
+            rgba[idx + 1] = g;
+            rgba[idx + 2] = b;
+            rgba[idx + 3] = a;
+        }
+    }
+    egui_multiwin::winit::window::Icon::from_rgba(rgba, width, height).ok()
+}
+
 pub fn launch_simulator() -> Result<(), Box<dyn std::error::Error>> {
     let event_loop = egui_multiwin::winit::event_loop::EventLoopBuilder::with_user_event().build()?;
 
@@ -153,10 +199,14 @@ pub fn launch_simulator() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     let simulator_win = SimulatorWindow::new();
-    let builder = egui_multiwin::winit::window::WindowBuilder::new()
+    let mut builder = egui_multiwin::winit::window::WindowBuilder::new()
         .with_title("Simulador de Tráfico")
         .with_inner_size(egui_multiwin::winit::dpi::LogicalSize::new(1440.0, 900.0))
         .with_min_inner_size(egui_multiwin::winit::dpi::LogicalSize::new(960.0, 640.0));
+
+    if let Some(icon) = load_icon() {
+        builder = builder.with_window_icon(Some(icon));
+    }
 
     let options = TrackedWindowOptions {
         shader: None,
