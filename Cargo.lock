@@ -711,6 +711,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "clipper2-rust"
+version = "1.0.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "119b9306cc17492f50224736a2b2595543665c3095ba40c04c5c5181d53678bc"
+dependencies = [
+ "num-traits",
+]
+
+[[package]]
 name = "cocoa"
 version = "0.25.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2991,6 +3000,7 @@ name = "simulador_trafico"
 version = "0.1.0"
 dependencies = [
  "chrono",
+ "clipper2-rust",
  "eframe",
  "egui",
  "egui-multiwin",

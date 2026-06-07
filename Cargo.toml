@@ -14,6 +14,7 @@ egui-multiwin = "0.5.2"
 # Time/Input handling
 instant = "0.1"
 chrono = "0.4"
+clipper2-rust = "1.0.3"
 
 
 [dev-dependencies]
