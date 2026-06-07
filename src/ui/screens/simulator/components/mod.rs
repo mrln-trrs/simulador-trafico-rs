@@ -1,1 +1,1 @@
-//! Reserved for future reusable UI components in the simulator shell.
+pub mod sidebar;
