@@ -96,19 +96,25 @@ pub fn handle_inspect_tool(
                             );
                         }
                         
-                        // Dibujar los ángulos en los vértices (desplazados hacia el interior del polígono)
+                        // Dibujar los ángulos en los vértices (desplazados hacia el interior del polígono en espacio de pantalla)
                         for i in 0..n {
                             let pt = obstacle[i];
                             let angle = angles[i];
                             
-                            let to_centroid = (centroid - pt).normalized();
-                            let pt_shifted = pt + to_centroid * 0.5; // Desplazar 0.5 metros en coordenadas de simulación
-                            let pt_screen = app.viewport.world_to_screen(rect, pt_shifted);
+                            let pt_screen = app.viewport.world_to_screen(rect, pt);
+                            let centroid_screen = app.viewport.world_to_screen(rect, centroid);
+                            let delta = centroid_screen - pt_screen;
+                            let dist = delta.length();
+                            let pt_shifted_screen = if dist > 0.001 {
+                                pt_screen + (delta / dist) * 18.0 // Desplazar 18 píxeles en pantalla hacia el centro
+                            } else {
+                                pt_screen
+                            };
                             
                             let text = format!("{:.0}°", angle);
-                            painter.circle_filled(pt_screen, 10.0, Color32::from_black_alpha(180));
+                            painter.circle_filled(pt_shifted_screen, 10.0, Color32::from_black_alpha(180));
                             painter.text(
-                                pt_screen,
+                                pt_shifted_screen,
                                 egui::Align2::CENTER_CENTER,
                                 text,
                                 egui::FontId::proportional(10.0),
