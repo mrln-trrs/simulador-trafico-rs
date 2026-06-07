@@ -47,6 +47,7 @@ impl<'a, T: Clone + PartialEq> Sidebar<'a, T> {
         ctx: &Context,
         is_expanded: &mut bool,
         selected_value: &mut Option<T>,
+        scale: f32,
     ) -> Option<T> {
         let mut clicked_val = None;
 
@@ -68,6 +69,7 @@ impl<'a, T: Clone + PartialEq> Sidebar<'a, T> {
                     .exact_width(width)
                     .frame(frame)
                     .show(ctx, |ui| {
+                        crate::ui::screens::simulator::windows::settings_window::apply_local_scale(ui, scale);
                         clicked_val = self.draw_vertical_content(ui, is_expanded, selected_value);
                     });
             }
@@ -78,6 +80,7 @@ impl<'a, T: Clone + PartialEq> Sidebar<'a, T> {
                     .exact_width(width)
                     .frame(frame)
                     .show(ctx, |ui| {
+                        crate::ui::screens::simulator::windows::settings_window::apply_local_scale(ui, scale);
                         clicked_val = self.draw_vertical_content(ui, is_expanded, selected_value);
                     });
             }
@@ -86,6 +89,7 @@ impl<'a, T: Clone + PartialEq> Sidebar<'a, T> {
                     .show_separator_line(false)
                     .frame(frame)
                     .show(ctx, |ui| {
+                        crate::ui::screens::simulator::windows::settings_window::apply_local_scale(ui, scale);
                         clicked_val = self.draw_horizontal_content(ui, is_expanded, selected_value);
                     });
             }
@@ -94,6 +98,7 @@ impl<'a, T: Clone + PartialEq> Sidebar<'a, T> {
                     .show_separator_line(false)
                     .frame(frame)
                     .show(ctx, |ui| {
+                        crate::ui::screens::simulator::windows::settings_window::apply_local_scale(ui, scale);
                         clicked_val = self.draw_horizontal_content(ui, is_expanded, selected_value);
                     });
             }

@@ -4,6 +4,7 @@ mod components;
 mod state;
 mod geom;
 mod tools;
+mod windows;
 
 use egui::{CentralPanel, Color32, Context, Rect, TopBottomPanel};
 
@@ -72,6 +73,17 @@ pub struct SimuladorApp {
 
     // Estado de inspección
     pub(crate) selected_inspect_object: Option<InspectedObject>,
+
+    // Estado de escala global de la interfaz y texto
+    pub(crate) ui_zoom: f32,
+    pub(crate) text_scale: f32,
+    pub(crate) show_settings_window: bool,
+    pub(crate) fonts_initialized: bool,
+    pub(crate) settings_window_size: Option<[u32; 2]>,
+    pub(crate) settings_window_pos: Option<[i32; 2]>,
+    pub(crate) egui_ctx: Option<egui::Context>,
+    pub(crate) last_frame_time: Option<std::time::Instant>,
+    pub(crate) fps: f32,
 }
 
 impl SimuladorApp {
@@ -98,6 +110,13 @@ impl SimuladorApp {
             
         cc.egui_ctx.set_fonts(fonts);
 
+        let ui_zoom = cc.storage
+            .and_then(|s| eframe::get_value(s, "main_ui_zoom"))
+            .unwrap_or(1.0f32);
+        let text_scale = cc.storage
+            .and_then(|s| eframe::get_value(s, "main_text_scale"))
+            .unwrap_or(1.0f32);
+
         Self {
             window_state,
             sidebar_expanded: true,
@@ -105,16 +124,45 @@ impl SimuladorApp {
             road_lanes: 1,
             next_road_id: 0,
             delete_mode: DeleteMode::SubPolygon,
+            ui_zoom,
+            text_scale,
+            show_settings_window: false,
+            fonts_initialized: false,
+            ..Default::default()
+        }
+    }
+
+    pub fn new_multiwin() -> Self {
+        Self {
+            sidebar_expanded: true,
+            selected_tool: None,
+            road_lanes: 1,
+            next_road_id: 0,
+            delete_mode: DeleteMode::SubPolygon,
+            ui_zoom: 1.0,
+            text_scale: 1.0,
+            show_settings_window: false,
+            fonts_initialized: false,
             ..Default::default()
         }
     }
 }
 
-impl eframe::App for SimuladorApp {
-    fn update(&mut self, ctx: &Context, _frame: &mut eframe::Frame) {
+impl SimuladorApp {
+    pub fn update_multiwin(&mut self, ctx: &Context, _window: &egui_multiwin::winit::window::Window) {
+        let now = std::time::Instant::now();
+        if let Some(last) = self.last_frame_time {
+            let delta = now.duration_since(last).as_secs_f32();
+            if delta > 0.0 {
+                self.fps = self.fps * 0.95 + (1.0 / delta) * 0.05;
+            }
+        }
+        self.last_frame_time = Some(now);
+
+        self.egui_ctx = Some(ctx.clone());
         self.window_state.sync_from_context(ctx);
 
-        draw_menu_bar(ctx, &mut self.viewport);
+        draw_menu_bar(ctx, self);
 
         // Render Sidebar (must be drawn before CentralPanel)
         let sidebar_items = vec![
@@ -145,12 +193,13 @@ impl eframe::App for SimuladorApp {
         ];
 
         Sidebar::new("left_sidebar", SidebarPosition::Left, &sidebar_items)
-            .show(ctx, &mut self.sidebar_expanded, &mut self.selected_tool);
+            .show(ctx, &mut self.sidebar_expanded, &mut self.selected_tool, self.ui_zoom * self.text_scale);
 
         let mut pointer_world = None;
         let mut viewport_rect = Rect::NOTHING;
 
         CentralPanel::default().show(ctx, |ui| {
+            crate::ui::screens::simulator::windows::settings_window::apply_local_scale(ui, self.ui_zoom * self.text_scale);
             let available_size = ui.available_size_before_wrap();
             // Usamos Sense::click_and_drag() para registrar clicks en el lienzo de forma precisa
             let (rect, response) = ui.allocate_exact_size(available_size, egui::Sense::click_and_drag());
@@ -331,11 +380,10 @@ impl eframe::App for SimuladorApp {
         TopBottomPanel::bottom("status_bar")
             .show_separator_line(false)
             .show(ctx, |ui| {
-                draw_status_bar(ui, &self.viewport, viewport_rect, pointer_world, &mut self.cache);
+                crate::ui::screens::simulator::windows::settings_window::apply_local_scale(ui, self.ui_zoom * self.text_scale);
+                draw_status_bar(ui, &self.viewport, viewport_rect, pointer_world, &mut self.cache, self.fps);
             });
-    }
 
-    fn save(&mut self, storage: &mut dyn eframe::Storage) {
-        self.window_state.save(storage);
+        ctx.request_repaint();
     }
 }

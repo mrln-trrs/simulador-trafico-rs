@@ -9,9 +9,11 @@ eframe = { version = "0.27", features = ["persistence"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 toml = "0.8"
+egui-multiwin = "0.5.2"
 
 # Time/Input handling
 instant = "0.1"
+chrono = "0.4"
 
 
 [dev-dependencies]

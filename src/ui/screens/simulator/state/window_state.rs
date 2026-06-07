@@ -31,6 +31,12 @@ impl SavedWindowState {
     }
 
     pub(crate) fn sync_from_context(&mut self, ctx: &Context) {
+        // Solo sincronizar el estado si es el viewport raíz (ventana principal)
+        let is_root = ctx.viewport_id() == egui::ViewportId::ROOT;
+        if !is_root {
+            return;
+        }
+
         let (maximized, inner_rect, outer_rect) = ctx.input(|input| {
             let viewport = input.viewport();
             (viewport.maximized, viewport.inner_rect, viewport.outer_rect)

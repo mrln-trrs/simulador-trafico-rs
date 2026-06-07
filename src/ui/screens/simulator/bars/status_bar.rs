@@ -10,6 +10,7 @@ pub(crate) fn draw_status_bar(
     rect: Rect,
     pointer_world: Option<Vec2>,
     cache: &mut GridRenderCache,
+    fps: f32,
 ) {
     let center_world = if rect.is_positive() {
         viewport.screen_to_world(rect, rect.center())
@@ -26,6 +27,18 @@ pub(crate) fn draw_status_bar(
     ui.horizontal_wrapped(|ui| {
         ui.spacing_mut().item_spacing = Vec2::new(6.0, 0.0);
 
+        status_entry(
+            ui,
+            &painter,
+            format!("| Reloj: {} |", chrono::Local::now().format("%H:%M:%S")),
+            60.0,
+        );
+        status_entry(
+            ui,
+            &painter,
+            format!("| Frecuencia: {:.0} Hz (FPS) |", fps),
+            60.0,
+        );
         status_entry(
             ui,
             &painter,

@@ -42,14 +42,17 @@ impl GridViewport {
         self.pan = (screen_point - rect.center()) / self.zoom - world_point;
     }
 
+    #[allow(dead_code)]
     pub(crate) fn zoom_by(&mut self, factor: f32) {
         self.zoom = (self.zoom * factor).clamp(MIN_ZOOM, MAX_ZOOM);
     }
 
+    #[allow(dead_code)]
     pub(crate) fn reset_zoom(&mut self) {
         self.zoom = DEFAULT_ZOOM;
     }
 
+    #[allow(dead_code)]
     pub(crate) fn center_on_origin(&mut self) {
         self.pan = Vec2::ZERO;
     }
