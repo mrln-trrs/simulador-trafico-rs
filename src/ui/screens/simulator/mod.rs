@@ -70,6 +70,8 @@ pub struct SimuladorApp {
     // Estado de borrado granular
     pub(crate) delete_mode: DeleteMode,
     pub(crate) delete_lasso_points: Vec<egui::Vec2>,
+    pub(crate) delete_roads: bool,
+    pub(crate) delete_buildings: bool,
 
     // Estado de inspección
     pub(crate) selected_inspect_object: Option<InspectedObject>,
@@ -124,6 +126,8 @@ impl SimuladorApp {
             road_lanes: 1,
             next_road_id: 0,
             delete_mode: DeleteMode::SubPolygon,
+            delete_roads: true,
+            delete_buildings: true,
             ui_zoom,
             text_scale,
             show_settings_window: false,
@@ -139,6 +143,8 @@ impl SimuladorApp {
             road_lanes: 1,
             next_road_id: 0,
             delete_mode: DeleteMode::SubPolygon,
+            delete_roads: true,
+            delete_buildings: true,
             ui_zoom: 1.0,
             text_scale: 1.0,
             show_settings_window: false,
@@ -234,7 +240,7 @@ impl SimuladorApp {
 
             // Pintar fondo y rejilla infinita
             painter.rect_filled(rect, 0.0, Color32::from_rgb(16, 18, 22));
-            draw_infinite_grid(&painter, rect, &self.viewport, &mut self.cache);
+            draw_infinite_grid(&painter, rect, &self.viewport, &mut self.cache, self.ui_zoom * self.text_scale);
 
             // Obtener el paso magnético según el zoom actual de la ventana
             let zoom = self.viewport.zoom;

@@ -8,6 +8,7 @@ pub(crate) fn draw_infinite_grid(
     rect: Rect,
     viewport: &GridViewport,
     cache: &mut GridRenderCache,
+    scale: f32,
 ) {
     let base_step = if viewport.zoom <= super::BASE_GRID_10M_ZOOM_THRESHOLD {
         10.0
@@ -28,14 +29,15 @@ pub(crate) fn draw_infinite_grid(
         1.0,
         10.0,
         true,
+        scale,
     );
 
     if viewport.zoom >= super::SUBGRID_10CM_ZOOM_THRESHOLD {
-        draw_step_grid(painter, rect, viewport, visible_world, cache, 0.1, Color32::from_gray(64), 0.5, 10.0, false);
+        draw_step_grid(painter, rect, viewport, visible_world, cache, 0.1, Color32::from_gray(64), 0.5, 10.0, false, scale);
     }
 
     if viewport.zoom >= super::SUBGRID_1CM_ZOOM_THRESHOLD {
-        draw_step_grid(painter, rect, viewport, visible_world, cache, 0.01, Color32::from_gray(54), 0.35, 10.0, false);
+        draw_step_grid(painter, rect, viewport, visible_world, cache, 0.01, Color32::from_gray(54), 0.35, 10.0, false, scale);
     }
 }
 
@@ -50,6 +52,7 @@ fn draw_step_grid(
     stroke_width: f32,
     major_every: f32,
     show_labels: bool,
+    scale: f32,
 ) {
     let start_x = (visible_world.min_x / step).floor() as i32 - 1;
     let end_x = (visible_world.max_x / step).ceil() as i32 + 1;
@@ -69,6 +72,10 @@ fn draw_step_grid(
     let mut labels = Vec::new();
     let vertical_range = rect.y_range();
     let horizontal_range = rect.x_range();
+
+    // Margen superior dinámico escalado para evitar la barra de herramientas/menú
+    let label_y_offset = 6.0 * scale;
+    let label_x_offset = 6.0 * scale;
 
     let mut screen_x = screen_x_start;
     for ix in start_x..=end_x {
@@ -90,8 +97,13 @@ fn draw_step_grid(
         ));
 
         if show_labels && is_major {
-            let label = cache.grid_label_galley(painter, (ix as f32 * step).round() as i64);
-            labels.push((Pos2::new(screen_x + 3.0, rect.top() + 3.0), label));
+            let label = cache.grid_label_galley(painter, (ix as f32 * step).round() as i64, scale);
+            let size = label.size();
+            // Evitar que se solape con el menú superior y que se dibuje fuera del canvas
+            let y_pos = (rect.top() + label_y_offset).clamp(rect.top(), rect.bottom() - size.y);
+            // Evitar que la etiqueta X se corte en los bordes laterales
+            let x_pos = (screen_x + 3.0).clamp(rect.left() + label_x_offset, rect.right() - size.x - 3.0);
+            labels.push((Pos2::new(x_pos, y_pos), label));
         }
 
         screen_x += x_delta;
@@ -117,8 +129,14 @@ fn draw_step_grid(
         ));
 
         if show_labels && is_major {
-            let label = cache.grid_label_galley(painter, (iy as f32 * step).round() as i64);
-            labels.push((Pos2::new(rect.left() + 4.0, screen_y + 2.0), label));
+            let label = cache.grid_label_galley(painter, (iy as f32 * step).round() as i64, scale);
+            let size = label.size();
+            // Mantener la etiqueta Y visible en el lateral izquierdo sin recortarse,
+            // pero también asegurando que no se solape con el botón de Configuración en el menú superior
+            let x_pos = (rect.left() + label_x_offset).clamp(rect.left(), rect.right() - size.x);
+            // Evitar el clipping vertical en el borde superior e inferior
+            let y_pos = (screen_y + 2.0).clamp(rect.top() + label_y_offset, rect.bottom() - size.y - 2.0);
+            labels.push((Pos2::new(x_pos, y_pos), label));
         }
 
         screen_y += y_delta;

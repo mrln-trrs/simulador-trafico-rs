@@ -42,7 +42,7 @@ pub(crate) struct StatusBarWidths {
 }
 
 impl GridRenderCache {
-    pub(crate) fn grid_label_galley(&mut self, painter: &Painter, value_meters: i64) -> Arc<egui::Galley> {
+    pub(crate) fn grid_label_galley(&mut self, painter: &Painter, value_meters: i64, scale: f32) -> Arc<egui::Galley> {
         if let Some(galley) = self.label_galleys.get(&value_meters) {
             return galley.clone();
         }
@@ -51,9 +51,10 @@ impl GridRenderCache {
             self.label_galleys.clear();
         }
 
+        let font_size = GRID_LABEL_FONT_SIZE * scale;
         let galley = painter.layout_no_wrap(
             format!("{value_meters} m"),
-            grid_label_font(),
+            FontId::proportional(font_size),
             grid_label_color(),
         );
         self.label_galleys.insert(value_meters, galley.clone());
