@@ -54,8 +54,6 @@ impl TrackedWindow for SimulatorWindow {
         let mut rr = RedrawResponse::default();
         let ctx = &egui.egui_ctx;
 
-        ctx.set_zoom_factor(c.simulator_app.ui_zoom * c.simulator_app.text_scale);
-
         // Inicializar fuentes del simulador (incluyendo Lucide icon font) de manera aislada
         if !c.simulator_app.fonts_initialized {
             let mut fonts = egui_multiwin::egui::FontDefinitions::default();
