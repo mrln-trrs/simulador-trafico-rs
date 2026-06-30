@@ -123,3 +123,57 @@ pub fn is_point_inside_any_other_road(p: egui::Vec2, current_road_id: usize, roa
     }
     false
 }
+
+/// Comprueba si un segmento de carretera nuevo colisiona con alguna carretera existente,
+/// con opción de excluir un ID (útil al mover una pista ya existente).
+pub fn road_collides_with_roads(
+    a: egui::Vec2,
+    b: egui::Vec2,
+    width: f32,
+    roads: &[RoadSegmentGeometry],
+    exclude_id: Option<usize>,
+) -> bool {
+    if a == b { return false; }
+    let dir = (b - a).normalized();
+    let normal = egui::vec2(-dir.y, dir.x);
+    let offset = normal * (width / 2.0);
+
+    let road_poly = vec![
+        a + offset,
+        b + offset,
+        b - offset,
+        a - offset,
+    ];
+
+    for road in roads {
+        if let Some(exc) = exclude_id {
+            if road.id == exc { continue; }
+        }
+        if road.from == road.to { continue; }
+        let r_width = road.lanes as f32 * 3.0;
+        let r_dir = (road.to - road.from).normalized();
+        let r_normal = egui::vec2(-r_dir.y, r_dir.x);
+        let r_offset = r_normal * (r_width / 2.0);
+        let other_poly = vec![
+            road.from + r_offset,
+            road.to + r_offset,
+            road.to - r_offset,
+            road.from - r_offset,
+        ];
+
+        if polygons_collide(&road_poly, &other_poly) {
+            return true;
+        }
+    }
+    false
+}
+
+/// Versión simplificada para creación: sin exclusión de ID.
+pub fn road_collides_with_any_road(
+    a: egui::Vec2,
+    b: egui::Vec2,
+    width: f32,
+    roads: &[RoadSegmentGeometry],
+) -> bool {
+    road_collides_with_roads(a, b, width, roads, None)
+}

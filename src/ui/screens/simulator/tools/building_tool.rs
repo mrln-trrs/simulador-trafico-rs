@@ -1,6 +1,6 @@
 use egui::{Color32, Context, Painter, Rect, Response};
 use crate::ui::screens::simulator::{SimuladorApp, Tool};
-use crate::ui::screens::simulator::geom::building_collides_with_roads;
+use crate::ui::screens::simulator::geom::{building_collides_with_roads, snap_to_elements};
 
 pub fn handle_building_tool(
     app: &mut SimuladorApp,
@@ -13,10 +13,13 @@ pub fn handle_building_tool(
 ) {
     if app.selected_tool == Some(Tool::Building) {
         if let Some(p_world) = pointer_world {
-            // Snap magnético
+            // Snap magnético a la rejilla
             let snapped_x = (p_world.x / step).round() * step;
             let snapped_y = (p_world.y / step).round() * step;
-            let snapped_pos = egui::vec2(snapped_x, snapped_y);
+            let grid_snapped = egui::vec2(snapped_x, snapped_y);
+
+            // Snap magnético a vértices/extremos de elementos cercanos
+            let snapped_pos = snap_to_elements(grid_snapped, &app.road_segments, &app.obstacles, None, None);
             let snapped_screen = app.viewport.world_to_screen(rect, snapped_pos);
 
             // Acción: Click izquierdo para colocar un vértice

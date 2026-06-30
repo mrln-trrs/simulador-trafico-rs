@@ -1,6 +1,9 @@
 use egui::{Color32, Context, Painter, Rect, Response};
 use crate::ui::screens::simulator::{RoadSegmentGeometry, SimuladorApp, Tool};
-use crate::ui::screens::simulator::geom::road_collides_with_obstacles;
+use crate::ui::screens::simulator::geom::{
+    road_collides_with_obstacles, road_collides_with_any_road,
+    snap_to_elements,
+};
 
 pub fn handle_road_tool(
     app: &mut SimuladorApp,
@@ -13,10 +16,21 @@ pub fn handle_road_tool(
 ) {
     if app.selected_tool == Some(Tool::Road) {
         if let Some(p_world) = pointer_world {
-            // Snap magnético
-            let snapped_x = (p_world.x / step).round() * step;
-            let snapped_y = (p_world.y / step).round() * step;
-            let snapped_pos = egui::vec2(snapped_x, snapped_y);
+            // Snap a la rejilla de 1.5m (= medio carril).
+            // Esto garantiza que los BORDES de la pista siempre caigan
+            // en líneas exactas: bordes = centro ± (lanes × 1.5m).
+            // Con step=1.5m: borde de 1 carril en 0/3/6/9..., 3 carriles en 0/9/18... ✓
+            let road_snap_step: f32 = if step >= 5.0 {
+                3.0  // Zoom muy alejado: snap cada 3m (alineación gruesa)
+            } else {
+                1.5  // Snap preciso: medio carril
+            };
+            let snapped_x = (p_world.x / road_snap_step).round() * road_snap_step;
+            let snapped_y = (p_world.y / road_snap_step).round() * road_snap_step;
+            let grid_snapped = egui::vec2(snapped_x, snapped_y);
+
+            // Snap magnético a elementos cercanos (centros de pistas y vértices de edificios)
+            let snapped_pos = snap_to_elements(grid_snapped, &app.road_segments, &app.obstacles, None, None);
             let snapped_screen = app.viewport.world_to_screen(rect, snapped_pos);
 
             let road_width = app.road_lanes as f32 * 3.0;
@@ -47,8 +61,13 @@ pub fn handle_road_tool(
             if response.clicked_by(egui::PointerButton::Primary) {
                 if let Some(start_pos) = app.road_draft {
                     if start_pos != snapped_pos {
-                        // Validar colisiones antes de colocar la pista
-                        if !road_collides_with_obstacles(start_pos, snapped_pos, road_width, &app.obstacles) {
+                        // Validar colisiones antes de colocar la pista:
+                        // 1) No puede solaparse con edificios
+                        let collides_obs = road_collides_with_obstacles(start_pos, snapped_pos, road_width, &app.obstacles);
+                        // 2) No puede solaparse con otras pistas
+                        let collides_roads = road_collides_with_any_road(start_pos, snapped_pos, road_width, &app.road_segments);
+
+                        if !collides_obs && !collides_roads {
                             // Crear como UN SOLO macrosegmento continuo y rápido
                             let road_id = app.next_road_id;
                             app.next_road_id += 1;
@@ -63,6 +82,7 @@ pub fn handle_road_tool(
                             // Encadenar trazado
                             app.road_draft = Some(snapped_pos);
                         }
+                        // Si hay colisión: no se hace nada (el preview en rojo ya advierte al usuario)
                     }
                 } else {
                     app.road_draft = Some(snapped_pos);
@@ -77,8 +97,11 @@ pub fn handle_road_tool(
             // Renderizar borrador/elástico actual de la carretera
             if let Some(start_pos) = app.road_draft {
                 if start_pos != snapped_pos {
-                    // Comprobar colisión para decidir el color del preview (rojo si choca)
-                    let collides = road_collides_with_obstacles(start_pos, snapped_pos, road_width, &app.obstacles);
+                    // Comprobar colisión para decidir el color del preview
+                    let collides_obs = road_collides_with_obstacles(start_pos, snapped_pos, road_width, &app.obstacles);
+                    let collides_roads = road_collides_with_any_road(start_pos, snapped_pos, road_width, &app.road_segments);
+                    let collides = collides_obs || collides_roads;
+
                     let preview_color = if collides {
                         Color32::from_rgba_unmultiplied(239, 68, 68, 60) // Rojo transparente
                     } else {
@@ -109,6 +132,17 @@ pub fn handle_road_tool(
                         [app.viewport.world_to_screen(rect, start_pos), snapped_screen],
                         egui::Stroke::new(1.0, border_color),
                     );
+
+                    // Etiqueta de colisión
+                    if collides_roads {
+                        painter.text(
+                            snapped_screen + egui::vec2(12.0, -16.0),
+                            egui::Align2::LEFT_CENTER,
+                            "⚠ Pista superpuesta",
+                            egui::FontId::proportional(11.0),
+                            Color32::from_rgb(239, 68, 68),
+                        );
+                    }
                 }
             }
         }

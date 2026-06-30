@@ -15,6 +15,8 @@ use self::canvas::viewport::GridViewport;
 use self::state::window_state::SavedWindowState;
 
 use self::components::sidebar::{Sidebar, SidebarItem, SidebarPosition};
+use self::tools::move_tool::MoveToolState;
+use self::tools::merge_tool::MergeToolState;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum Tool {
@@ -22,6 +24,8 @@ pub enum Tool {
     Building,
     Inspect,
     Delete,
+    Move,
+    Merge,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -72,6 +76,12 @@ pub struct SimuladorApp {
 
     // Estado de inspección
     pub(crate) selected_inspect_object: Option<InspectedObject>,
+
+    // Estado de la herramienta Mover
+    pub(crate) move_state: MoveToolState,
+
+    // Estado de la herramienta Unir
+    pub(crate) merge_state: MergeToolState,
 }
 
 impl SimuladorApp {
@@ -131,6 +141,18 @@ impl eframe::App for SimuladorApp {
                 tooltip: "Construir zonas y edificios".to_string(),
             },
             SidebarItem {
+                value: Tool::Move,
+                icon: "\u{e26c}".to_string(), // icon-move
+                label: "Mover".to_string(),
+                tooltip: "Mover pistas y edificios".to_string(),
+            },
+            SidebarItem {
+                value: Tool::Merge,
+                icon: "\u{e1a3}".to_string(), // icon-git-merge
+                label: "Unir".to_string(),
+                tooltip: "Unir dos elementos del mismo tipo".to_string(),
+            },
+            SidebarItem {
                 value: Tool::Inspect,
                 icon: "\u{e151}".to_string(), // icon-search
                 label: "Inspeccionar".to_string(),
@@ -160,7 +182,9 @@ impl eframe::App for SimuladorApp {
 
             let (zoom_delta, hover_pos) = ui.input(|input| (input.zoom_delta(), input.pointer.hover_pos()));
 
-            if response.dragged() {
+            // Solo hacer pan si no estamos arrastrando un elemento con Move
+            let is_moving = self.move_state.drag_target.is_some();
+            if response.dragged() && !is_moving {
                 self.viewport.pan += response.drag_delta() / self.viewport.zoom;
                 viewport_changed = true;
             }
@@ -326,6 +350,8 @@ impl eframe::App for SimuladorApp {
             tools::handle_road_tool(self, ctx, rect, &response, &painter, pointer_world, step);
             tools::handle_delete_tool(self, ctx, rect, &response, &painter, pointer_world, step);
             tools::handle_inspect_tool(self, ctx, rect, &response, &painter);
+            tools::handle_move_tool(self, ctx, rect, &response, &painter, pointer_world, step);
+            tools::handle_merge_tool(self, ctx, rect, &response, &painter, pointer_world);
         });
 
         TopBottomPanel::bottom("status_bar")
