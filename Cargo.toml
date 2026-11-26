@@ -8,7 +8,7 @@ egui = "0.27"
 eframe = { version = "0.27", features = ["persistence"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-toml = "0.8"
+toml = "1.2"
 egui-multiwin = "0.5.2"
 
 # Time/Input handling
